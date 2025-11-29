@@ -1,0 +1,3 @@
+/* src/index.css */
+/* CRITICAL FIX for Tailwind v4+: Replaces @tailwind base, components, and utilities */
+@import 'tailwindcss';
