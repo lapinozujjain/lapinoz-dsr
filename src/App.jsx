@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 //Vercel analytics imports
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 // Firebase Imports
 import { initializeApp } from "firebase/app";
