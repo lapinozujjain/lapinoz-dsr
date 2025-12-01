@@ -48,14 +48,15 @@ import {
 
 // --- Firebase Initialization ---
 //const firebaseConfig = JSON.parse(__firebase_config);
+// This version securely loads configuration from environment variables (like those set in Vercel)
 const firebaseConfig = {
-  apiKey: "AIzaSyDSdbc92YN-Cf9rjR9WTs3GE6Xnox4w460",
-  authDomain: "la-pinoz-dsr.firebaseapp.com",
-  projectId: "la-pinoz-dsr",
-  storageBucket: "la-pinoz-dsr.firebasestorage.app",
-  messagingSenderId: "594781745834",
-  appId: "1:594781745834:web:b1c9f6790edfa04ca896d3",
-  measurementId: "G-2BWP1LDFB0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID,
+  measurementId: import.meta.env.VITE_MEASUREMENT_ID,
 };
 const appId = "la-pinoz-dsr-v1"; // You can name this whatever you want
 const app = initializeApp(firebaseConfig);
@@ -457,7 +458,7 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
       denominations: Object.fromEntries(Object.entries(denominations).map(([k, v]) => [k, parseFloat(v) || 0])),
       totalExpense,
       openingBalance: OPENING_CASH_BALANCE,
-      cashInHand,
+      cashInHand: theoreticalCashInHand,
       physicalCash,
       difference,
       createdAt: serverTimestamp()
