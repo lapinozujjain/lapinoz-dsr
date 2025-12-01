@@ -11,7 +11,7 @@ import {
   CreditCard,
   Trash2,
   Save,
-  IndianRupee, // Changed from DollarSign
+  IndianRupee,
   AlertCircle,
   Upload,
   FileSpreadsheet,
@@ -56,7 +56,7 @@ import {
 
 // --- Firebase Initialization ---
 //const firebaseConfig = JSON.parse(__firebase_config);
-// This version securely loads configuration from environment variables (like those set in Vercel)
+//This version securely loads configuration from environment variables (like those set in Vercel)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -121,21 +121,6 @@ export default function App() {
   };
   // 💥 END AUTHENTICATION HANDLERS
 
-
-  // // 1. Auth & Data Loading Pattern
-  // useEffect(() => {
-  //   const initAuth = async () => {
-  //     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-  //       await signInWithCustomToken(auth, __initial_auth_token);
-  //     } else {
-  //       await signInAnonymously(auth);
-  //     }
-  //   };
-  //   initAuth();
-  //   const unsubscribe = onAuthStateChanged(auth, setUser);
-  //   return () => unsubscribe();
-  // }, []);
-
   // 1. Auth & Data Loading Pattern (UPDATED for Email/Password)
   useEffect(() => {
     // This listener watches the authentication state
@@ -185,70 +170,6 @@ export default function App() {
         return <Dashboard entries={entries} />;
     }
   };
-
-  // return (
-  //   <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-  //     {/* Print Style Block */}
-  //     <style>{`
-  //       @media print {
-  //         .no-print { display: none !important; }
-  //         .print-only { display: block !important; }
-  //         .print-wide { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
-  //         body { font-size: 10px; -webkit-print-color-adjust: exact; }
-  //         table { font-size: 9px; width: 100%; border-collapse: collapse; }
-  //         th, td { padding: 4px !important; border: 1px solid #ddd !important; }
-  //       }
-  //     `}</style>
-
-  //     {/* Sidebar */}
-  //     <aside className="w-64 bg-slate-900 text-white flex-shrink-0 hidden md:flex flex-col no-print">
-  //       <div className="p-6">
-  //         <h1 className="text-xl font-bold tracking-wider text-green-400">LA PINO'Z</h1>
-  //         <p className="text-xs text-gray-400 mt-1">DSR Manager Ujjain</p>
-  //       </div>
-  //       <nav className="flex-1 px-4 space-y-2">
-  //         <NavButton 
-  //           active={view === 'dashboard'} 
-  //           onClick={() => setView('dashboard')} 
-  //           icon={<LayoutDashboard size={20} />} 
-  //           label="Dashboard" 
-  //         />
-  //         <NavButton 
-  //           active={view === 'new'} 
-  //           onClick={() => setView('new')} 
-  //           icon={<PlusCircle size={20} />} 
-  //           label="New Daily Entry" 
-  //         />
-  //         <NavButton 
-  //           active={view === 'history'} 
-  //           onClick={() => setView('history')} 
-  //           icon={<History size={20} />} 
-  //           label="Reports & History" 
-  //         />
-  //       </nav>
-  //       <div className="p-4 text-xs text-gray-500 border-t border-gray-800">
-  //         User ID: {user?.uid?.substring(0, 8)}...
-  //       </div>
-  //     </aside>
-
-  //     {/* Mobile Nav Header */}
-  //     <div className="flex-1 flex flex-col overflow-hidden">
-  //       <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center z-10 no-print">
-  //         <span className="font-bold text-green-400">LA PINO'Z DSR</span>
-  //         <div className="flex space-x-4">
-  //           <button onClick={() => setView('dashboard')}><LayoutDashboard size={20} /></button>
-  //           <button onClick={() => setView('new')}><PlusCircle size={20} /></button>
-  //           <button onClick={() => setView('history')}><History size={20} /></button>
-  //         </div>
-  //       </header>
-
-  //       {/* Main Content */}
-  //       <main className="flex-1 overflow-y-auto p-4 md:p-8 print-wide">
-  //         {renderView()}
-  //       </main>
-  //     </div>
-  //   </div>
-  // );
 
   return (
     <>
