@@ -1023,7 +1023,7 @@ const HistoryView = ({ entries, user }) => {
     // Define Headers matching the table structure
     const headers = [
       "Date", "Total Sale", "POS (UPI/CC)", "Swiggy", "Zomato Online", "Zomato Cash", "Uengage Online", "Uengage Cash", 
-      "Cash Sale", // CHANGE 3: Column name changed
+      "Cash Sale", // Column name is correct
       "Expenses", "Physical Cash (W/O Deposit)", "Short/Excess", "Comments"
     ];
     const csvRows = [headers.join(',')];
@@ -1209,7 +1209,11 @@ className="flex justify-between pt-4 border-t mt-4 font-bold text-lg">
                         <div className="flex items-center justify-end space-x-1">
                           <span>₹{entry.totalExpense.toLocaleString()}</span>
                           {entry.expenses && entry.expenses.length > 0 && (
-                            <button onClick={() => setSelectedExpenseEntry(entry)} className="no-print text-gray-400 hover:text-blue-600">
+                            <button 
+                              onClick={() => setSelectedExpenseEntry(entry)} 
+                              className="no-print text-gray-400 hover:text-blue-600"
+                              title="View Expense Details" // FIX: Added title for hover indication
+                            >
                               <Eye size={12} />
                             </button>
                           )}
@@ -1240,7 +1244,11 @@ className="flex justify-between pt-4 border-t mt-4 font-bold text-lg">
                       </td>
 
                       <td className="p-3 text-center no-print">
-                        <button onClick={() => handleDelete(entry.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                        <button 
+                          onClick={() => handleDelete(entry.id)} 
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete Entry" // Improvement: Added title for hover indication
+                        >
                           <Trash2 size={16} />
                         </button>
                       </td>
