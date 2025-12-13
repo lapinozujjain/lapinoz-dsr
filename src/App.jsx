@@ -224,19 +224,19 @@ export default function App() {
                 disabled={!email || !password}
               >
                 {isSigningUp ?
-                  'Sign Up' : 'Sign In'}
+'Sign Up' : 'Sign In'}
               </button>
 
               <p className="text-center mt-4 text-sm text-gray-600">
                 {isSigningUp ?
-                  'Already have an account?' : "Don't have an account?"}
+'Already have an account?' : "Don't have an account?"}
                 <button
                   onClick={() => { setIsSigningUp(!isSigningUp);
-                    setAuthError(null); }}
+setAuthError(null); }}
                   className="text-green-600 font-medium ml-1 hover:text-green-800"
                 >
                   {isSigningUp ?
-                    'Sign In' : 'Sign Up'}
+'Sign In' : 'Sign Up'}
                 </button>
               </p>
             </div>
@@ -259,7 +259,7 @@ export default function App() {
               body { font-size: 10px; -webkit-print-color-adjust: exact; }
               table { font-size: 9px; width: 100%; border-collapse: collapse; }
               th, td { padding: 4px 
-            !important; border: 1px solid #ddd !important; }
+!important; border: 1px solid #ddd !important; }
             }
           `}</style>
 
@@ -305,35 +305,37 @@ export default function App() {
         {/* LOGOUT BUTTON ADDED TO SIDEBAR */}
         <div className="p-4 no-print">
           <button 
-            onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors shadow-md">
+onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors shadow-md">
             Logout ({user?.email})
           </button>
         </div>
       </aside>
 
-      {/* Mobile Nav Header - MODIFIED FOR BOTTOM NAV */}
+      {/* Mobile Nav Header - Re-copied from original JSX (Source 776-777) */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center z-10 no-print">
        
           <span className="font-bold text-green-400">LA PINO'Z DSR</span>
-          <span className="text-sm text-gray-400">User: {user?.uid?.substring(0, 4)}...</span>
+          <div className="flex space-x-4">
+            <button onClick={() => setView('dashboard')}><LayoutDashboard size={20} /></button>
+            <button onClick={() => setView('new')}><PlusCircle size={20} /></button>
+            <button onClick={() => setView('history')}><History size={20} /></button>
+          </div>
         </header>
 
-        {/* Main Content - PADDING ADDED FOR BOTTOM NAV */}
+        {/* ADD LOGOUT BUTTON 
+FOR MOBILE VIEW */}
+        <div className="md:hidden p-2 bg-slate-900 no-print">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white text-sm p-2 rounded-lg hover:bg-red-700 transition-colors shadow-md">
+            Logout ({user?.email})
+          </button>
+        </div>
+
+        {/* Main Content - Re-copied from original JSX (Source 777-778) */}
         <main className="flex-1 overflow-y-auto p-4 
-          md:p-8 pb-20 print-wide">
+md:p-8 print-wide">
           {renderView()}
         </main>
-
-        {/* NEW: Mobile Bottom Navigation Bar (Fixed for better UX) */}
-        <div className="fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 shadow-xl md:hidden z-20 no-print">
-            <div className="flex justify-around items-center h-16">
-                <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={20} />} label="Dash" />
-                <MobileNavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={20} />} label="New" />
-                <MobileNavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={20} />} label="History" />
-                <MobileNavButton onClick={handleLogout} icon={<X size={20} />} label="Logout" isLogout={true} />
-            </div>
-        </div>
       </div>
     </div >
           )
@@ -354,21 +356,6 @@ const NavButton = ({ active, onClick, icon, label }) => (
     <span className="font-medium">{label}</span>
   </button>
 );
-
-// --- NEW: Mobile Nav Button for bottom bar ---
-const MobileNavButton = ({ active, onClick, icon, label, isLogout = false }) => (
-  <button
-    onClick={onClick}
-    className={`flex flex-col items-center justify-center p-2 text-xs transition-colors ${
-      active ? 'text-green-600 font-bold' : isLogout ? 'text-red-500 hover:text-red-700' : 'text-gray-500 hover:text-gray-700'
-    }`}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
-
-
 // ---------------- DASHBOARD VIEW ----------------
 const Dashboard = ({ entries }) => {
   // Helper for dates
@@ -387,20 +374,21 @@ const Dashboard = ({ entries }) => {
   });
   const totalSales = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.totalSale) || 0), 0);
   const totalExpenses = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.totalExpense) || 0), 0);
-  // Net cash flow (theoretical)
-  const netCash = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.cashInHand) || 0), 0);
-  // Breakdown Totals
+// Net Physical Cash (excluding opening balance)
+// CHANGE 2: Corrected 'net cash in hand' to be sum of 'net physical' cash
+  const netCash = filteredEntries.reduce((acc, curr) => acc + ((parseFloat(curr.physicalCash) || 0) - (parseFloat(curr.openingBalance) || 0)), 0);
+// Breakdown Totals
   const totalPOS = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.sales?.pos) || 0), 0);
   const totalSwiggy = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.sales?.swiggy) || 0), 0);
   const totalZomato = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.sales?.zomatoOnline) || 0) + (parseFloat(curr.sales?.zomatoCash) || 0), 0);
   const totalUengage = filteredEntries.reduce((acc, curr) => acc + (parseFloat(curr.sales?.uengageOnline) || 0) + (parseFloat(curr.sales?.uengageCash) || 0), 0);
-  // Calculate aggregated Cash Sales (Counter Cash)
+// Calculate aggregated Cash Sales (Counter Cash)
   const cashSales = filteredEntries.reduce((acc, curr) => {
     return acc + (parseFloat(curr.sales?.cash) || 0);
   }, 0);
-  // Data for Charts
+// Data for Charts
   // filteredEntries is Descending (from App).
-  // Reverse to get Ascending (Time moving left to right)
+// Reverse to get Ascending (Time moving left to right)
   const chartData = [...filteredEntries].reverse().map(e => ({
     date: e.date.split('-')[2], // just the day
     fullDate: e.date,
@@ -459,7 +447,7 @@ const Dashboard = ({ entries }) => {
 
       {/* Stats Cards Row 2 - Breakdowns */}
       <div 
-        className="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
+className="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
         <StatCard title="Total POS" value={`₹${totalPOS.toLocaleString()}`} icon={<CreditCard size={18} className="text-gray-600" />} color="bg-gray-100" size="sm" />
         <StatCard title="Total Swiggy" value={`₹${totalSwiggy.toLocaleString()}`} icon={<Smartphone size={18} className="text-orange-500" />} color="bg-orange-50" size="sm" />
         <StatCard title="Total Zomato" value={`₹${totalZomato.toLocaleString()}`} icon={<Smartphone size={18} className="text-red-500" />} color="bg-red-50" size="sm" />
@@ -468,38 +456,38 @@ const Dashboard = ({ entries }) => {
 
       {/* Chart */}
       <div className="bg-white p-6 rounded-xl 
-        shadow-sm border border-gray-200">
+shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold mb-4 text-gray-700">Detailed Revenue & Expense Trend</h3>
         <div className="h-96 w-full">
           {chartData.length > 0 ?
-            (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: '#9ca3af' }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#9ca3af' }} />
+(
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: '#9ca3af' }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#9ca3af' }} />
    
-                  <Tooltip
-                    labelFormatter={(value, payload) => payload[0]?.payload.fullDate || value}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                  />
+                <Tooltip
+                  labelFormatter={(value, payload) => payload[0]?.payload.fullDate || value}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                />
                 
-                  <Legend />
-                  {/* Lines for each revenue source */}
-                  <Line type="monotone" dataKey="pos" name="POS" stroke="#4b5563" strokeWidth={2} dot={{ r: 2 }} />
-                  <Line type="monotone" dataKey="swiggy" name="Swiggy" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} />
-                  <Line type="monotone" dataKey="zomato" name="Zomato" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 
+                <Legend />
+                {/* Lines for each revenue source */}
+                <Line type="monotone" dataKey="pos" name="POS" stroke="#4b5563" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="swiggy" name="Swiggy" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="zomato" name="Zomato" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 
 }} />
-                  <Line type="monotone" dataKey="uengage" name="Uengage" stroke="#6366f1" strokeWidth={2} dot={{ r: 2 }} />
-                  <Line type="monotone" dataKey="cash" name="Counter Cash" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#dc2626" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
+                <Line type="monotone" dataKey="uengage" name="Uengage" stroke="#6366f1" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="cash" name="Counter Cash" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#dc2626" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 2 }} />
+              </LineChart>
     
-              </ResponsiveContainer>
-            ) : (
+            </ResponsiveContainer>
+          ) : (
             <div className="flex h-full items-center justify-center text-gray-400">
               No data available for this time frame.
-            </div>
+</div>
           )}
         </div>
       </div>
@@ -556,7 +544,7 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
   // Derived Counter Cash Sale = Total Sale - (Everything Else)
   const calculatedCashSale = totalSale - (pos + swiggy + uengageOnline + uengageCash + zomatoOnline + zomatoCash);
   const totalExpense = expenses.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-  // Theoretical Cash in Drawer = Counter Cash + Uengage Cash + Zomato Cash - Expenses + OPENING BALANCE
+// Theoretical Cash in Drawer = Counter Cash + Uengage Cash + Zomato Cash - Expenses + OPENING BALANCE
   const theoreticalCashInHand = calculatedCashSale + uengageCash + zomatoCash - totalExpense + OPENING_CASH_BALANCE;
   const physicalCash = Object.entries(denominations).reduce((acc, [denom, count]) => {
     return acc + (parseFloat(denom) * (parseFloat(count) || 0));
@@ -586,7 +574,7 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
   const handleSubmit = async () => {
     if (!user) return;
     setValidationError('');
-    // Check for duplicates
+// Check for duplicates
     const duplicate = existingEntries.find(e => e.date === date);
     if (duplicate) {
       if (!confirm(`Warning: A report for ${date} already exists. Do you want to continue and add another entry for this date?`)) {
@@ -615,7 +603,7 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
         cash: calculatedCashSale
       },
       expenses: expenses.filter(e => 
-        e.description && e.amount).map(e => ({
+e.description && e.amount).map(e => ({
         description: e.description,
         amount: parseFloat(e.amount) || 0
       })),
@@ -646,7 +634,6 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
 
         {validationError && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 flex items-center">
-            
             <AlertCircle size={20} className="mr-2" />
             {validationError}
           </div>
@@ -656,7 +643,6 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
         <div className="flex flex-col md:flex-row gap-6 mb-8 pb-8 border-b border-gray-100">
           <div className="w-full md:w-1/3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
-        
             <input
               type="date"
               value={date}
@@ -664,52 +650,34 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
               className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
-         
           <div className="w-full md:w-2/3">
-            <label className="block text-sm font-bold text-gray-800 mb-1">Total Daily Sale (From Billing Software)</label>
+            <label className="block text-sm font-bold text-gray-800 mb-1">Total Daily 
+Sale (From Billing Software)</label>
             <div className="relative">
-              <span className="absolute left-3 top-3 text-gray-500 font-bold">₹</span>
+              <span className="absolute left-3 top-3 text-gray-500">₹</span>
               <input
                 type="number"
-             
+                placeholder="0"
                 value={totalSaleInput}
                 onChange={(e) => setTotalSaleInput(e.target.value)}
-                placeholder="Enter total sale of the day"
-                className="w-full pl-8 p-3 border-2 border-blue-100 rounded-lg text-lg font-bold text-gray-900 focus:border-blue-500 outline-none transition-colors"
+                className="w-full pl-7 pr-3 p-2.5 text-2xl font-extrabold text-green-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
               />
             </div>
-     
-            <p className="text-xs text-gray-500 mt-1 flex items-center">
-              <Calculator size={12} className="mr-1" />
-              System will calculate "Cash Sale" by subtracting other sources from this amount.
-            </p>
           </div>
         </div>
 
-        {/* Sales & Expenses Sections */}
+        {/* Sales & Expense Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Sales Input (Col 1) */}
-          <div className="space-y-4">
+          {/* Sales Section */}
+          <div>
             <h3 className="font-semibold text-gray-800 mb-4 border-b pb-2 flex items-center">
-              <TrendingUp size={16} className="mr-2" />
-              Breakdown of Sales (All Online/Card/App Sales)
+              <TrendingUp size={16} className="mr-2" /> Revenue Split
             </h3>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-              {/* Derived Cash Sale */}
-              <div className="flex items-center justify-between pb-2 border-b border-green-200">
-                <label className="text-sm text-green-700 font-bold flex items-center">
-                  <IndianRupee size={16} className="mr-1" />
-                  Calculated Counter Cash Sale
-                </label>
-                <span className={`text-xl font-extrabold ${calculatedCashSale < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                  ₹{calculatedCashSale.toLocaleString()}
-                </span>
-              </div>
-
-              {/* 1. POS/UPI */}
+            <div className="space-y-3">
+              {/* 1. POS */}
               <div className="flex items-center justify-between pb-2 border-b border-gray-50">
-                <label className="text-sm text-gray-600 font-medium">POS (Credit Card/UPI)</label>
+                <label className="text-sm text-gray-600 font-medium">POS (Credit/Debit/UPI)</label>
                 <div className="relative w-1/2">
                   <span className="absolute left-3 top-2 text-gray-400">₹</span>
                   <input
@@ -721,7 +689,6 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
                   />
                 </div>
               </div>
-
               {/* 2. Swiggy */}
               <div className="flex items-center justify-between pb-2 border-b border-gray-50">
                 <label className="text-sm text-gray-600 font-medium">Swiggy</label>
@@ -736,7 +703,6 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
                   />
                 </div>
               </div>
-
               {/* 3. Zomato Split */}
               <div className="pb-2 border-b border-gray-50">
                 <div className="flex justify-between items-center mb-1">
@@ -765,7 +731,6 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
                   </div>
                 </div>
               </div>
-
               {/* 4. Uengage Split */}
               <div className="pb-2 border-b border-gray-50">
                 <div className="flex justify-between items-center mb-1">
@@ -780,7 +745,7 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
                       value={sales.uengageOnline}
                       onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })}
                       className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md 
-                      text-right text-sm focus:border-green-500 outline-none"
+text-right text-sm focus:border-green-500 outline-none"
                     />
                   </div>
                   <div className="relative flex-1">
@@ -795,70 +760,68 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
                   </div>
                 </div>
               </div>
-
+              {/* Calculated Cash Sale */}
+              <div className="flex items-center justify-between pt-4 border-t font-bold text-gray-900">
+                <span>Calculated Cash Sale</span>
+                <span className="text-green-600">₹{calculatedCashSale.toLocaleString()}</span>
+              </div>
             </div>
           </div>
 
-          {/* Expenses Input (Col 2) */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-800 mb-4 border-b pb-2 flex items-center justify-between">
-              <span className="flex items-center"><CreditCard size={16} className="mr-2 text-red-600" /> Daily Expenses</span>
-              <button
-                onClick={addExpenseRow}
-                className="text-xs text-blue-600 font-medium flex items-center hover:text-blue-800"
-              >
-                <PlusCircle size={14} className="mr-1" /> Add Expense
+          {/* Expenses Section */}
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-4 border-b pb-2 flex items-center">
+              <CreditCard size={16} className="mr-2" /> Daily Expenses
+              <button onClick={addExpenseRow} className="ml-auto text-green-600 hover:text-green-800 text-sm font-normal flex items-center">
+                <PlusCircle size={14} className="mr-1" /> Add
               </button>
             </h3>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {expenses.map((exp, index) => (
-                  <div key={exp.id} className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      placeholder={`Expense ${index + 1} Description`}
-                      value={exp.description}
-                      onChange={(e) => handleExpenseChange(exp.id, 'description', e.target.value)}
-                      className="flex-1 p-2 border border-gray-200 rounded-md text-sm focus:border-green-500 outline-none"
-                    />
-                    <div className="relative w-24">
-                      <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
-                      <input
-                        type="number"
-                        placeholder="Amount"
-                        value={exp.amount}
-                        onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
-                        className="w-full pl-6 p-2 border border-gray-200 rounded-md text-sm text-right"
-                      />
-                    </div>
-                    {expenses.length > 1 && (
-                      <button onClick={() => removeExpenseRow(exp.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center pt-4 border-t font-bold text-gray-900 mt-4">
-                <span>Total Expenses</span>
-                <span className="text-red-600">- ₹{totalExpense.toLocaleString()}</span>
-              </div>
+            <div className="space-y-3">
+              {expenses.map(exp => (
+                <div key={exp.id} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Expense description (e.g. Tea/Coffee)"
+                    value={exp.description}
+                    onChange={(e) => handleExpenseChange(exp.id, 'description', e.target.value)}
+                    className="flex-1 p-2 border border-gray-200 rounded-md text-sm focus:border-green-500 outline-none"
+                  />
+                  <span className="text-gray-400">₹</span>
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={exp.amount}
+                    onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
+                    className="w-24 p-2 border border-gray-200 rounded-md text-sm text-right"
+                  />
+                  {expenses.length > 1 && (
+                    <button onClick={() => removeExpenseRow(exp.id)} className="text-red-400 hover:text-red-600">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {/* Comment Section */}
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-2 border-b pb-2 flex items-center">
-                <MessageSquare size={16} className="mr-2" /> Daily Note / Comment
-              </h3>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Any special notes for today?
-                (e.g., Heavy rain, Printer repair...)"
-                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none h-24 resize-none"
-              />
+            <div className="flex justify-between items-center pt-4 border-t font-bold text-gray-900 mt-4">
+              <span>Total Expenses</span>
+              <span className="text-red-600">- ₹{totalExpense.toLocaleString()}</span>
             </div>
+          </div>
+
+          {/* Comment Section */}
+          <div className="md:col-span-2">
+            <h3 className="font-semibold text-gray-800 mb-2 border-b pb-2 flex items-center">
+              <MessageSquare size={16} className="mr-2" /> Daily Note / Comment
+            </h3>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Any special notes for today?
+(e.g., Heavy rain, Printer repair...)"
+              className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none h-24 resize-none"
+            />
           </div>
         </div>
       </div>
@@ -886,70 +849,60 @@ const NewEntryForm = ({ user, onSuccess, existingEntries }) => {
           </div>
 
           {/* Final Calculations 
-            */}
+*/}
           <div className="space-y-3">
             <h3 className="font-semibold text-gray-800 mb-3 text-sm uppercase tracking-wide">Closing Summary</h3>
             <div className="space-y-1 text-sm text-gray-600 pb-2 border-b border-gray-200">
               <div className="flex justify-between text-indigo-600 font-medium">
-                <span className="flex items-center"><Lock size={12} className="mr-1" />Opening Deposit</span>
-                <span>+ ₹{OPENING_CASH_BALANCE}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Counter Cash Sale</span>
-                <span>+ ₹{calculatedCashSale.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Cash from Zomato/Uengage</span>
-                <span>+ ₹{(zomatoCash + uengageCash).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-red-600">
-                <span>Total Expenses</span>
-                <span>- ₹{totalExpense.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-                <span>Theoretical Cash In Hand</span>
+                <span className="flex items-center">
+                  <Calculator size={14} className="mr-1" /> Theoretical Cash In Hand
+                </span>
                 <span>₹{theoreticalCashInHand.toLocaleString()}</span>
               </div>
-            </div>
-
-            <div className="space-y-1 text-sm text-gray-600">
-              <div className="flex justify-between text-green-600 font-bold">
-                <span>Physical Cash Count</span>
+              <div className="flex justify-between font-bold text-gray-900">
+                <span className="flex items-center">
+                  <IndianRupee size={14} className="mr-1" /> Physical Cash Count
+                </span>
                 <span>₹{physicalCash.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t font-bold text-lg">
-                <span>Difference (Short/Excess)</span>
-                <span className={difference < 0 ? 'text-red-600' : difference > 0 ? 'text-green-600' : 'text-gray-500'}>
-                  {difference.toLocaleString()}
-                </span>
-              </div>
             </div>
-
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || totalSale <= 0}
-              className="w-full mt-4 flex items-center justify-center space-x-2 bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150 disabled:opacity-50 shadow-md"
-            >
-              {isSubmitting ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <Save size={20} />
-              )}
-              <span>{isSubmitting ? 'Saving...' : 'Submit Daily Sales Report'}</span>
-            </button>
-
+            
+            <div className="flex justify-between text-base font-extrabold items-center pt-2">
+              <span className="flex items-center">
+                <AlertCircle size={18} className="mr-1" /> Short/Excess
+              </span>
+              <span className={difference < 0 ? 'text-red-600' : difference > 0 ? 'text-green-600' : 'text-gray-500'}>
+                {difference < 0 ? 'Short' : difference > 0 ? 'Excess' : 'Tally'} (₹{Math.abs(difference).toLocaleString()})
+              </span>
+            </div>
           </div>
+        </div>
+
+        {/* Submit Button */}
+        <div className="mt-8 pt-4 border-t border-gray-200">
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || totalSale <= 0}
+            className="w-full flex items-center justify-center space-x-2 bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150 disabled:opacity-50 shadow-md"
+          >
+            {isSubmitting ? (
+              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <Save size={20} />
+            )}
+            <span>{isSubmitting ? 'Saving...' : 'Save Daily Sales Report'}</span>
+          </button>
         </div>
       </div>
     </div>
   );
 };
-
-// ---------------- HISTORY VIEW ----------------
+// ---------------- HISTORY/REPORTS VIEW ----------------
 const HistoryView = ({ entries, user }) => {
+  const [selectedEntry, setSelectedEntry] = useState(null); // For detail view
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null); // State for modal
+  const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null); // For expense modal
 
   // Date Range State for History
   const getFirstDayOfMonth = () => {
@@ -962,13 +915,11 @@ const HistoryView = ({ entries, user }) => {
 
   // Filter entries
   const filteredEntries = entries.filter(e => {
-    // Firebase dates are strings
     return e.date >= startDate && e.date <= endDate;
   });
 
   // Sort Ascending (Oldest First) - as requested
   const sortedEntries = [...filteredEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
-
 
   const handleDelete = async (id) => {
     if (confirm("Are you sure you want to delete this entry? This cannot be undone.")) {
@@ -981,74 +932,71 @@ const HistoryView = ({ entries, user }) => {
     }
   };
 
-
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
     setIsImporting(true);
-
     const reader = new FileReader();
+
     reader.onload = async (e) => {
       try {
         const text = e.target.result;
         const rows = text.split('\n');
         const batch = writeBatch(db);
 
-        // This assumes a simple collection for DSR entries without nested users/artifacts
-        const collectionRef = collection(db, 'dsr_entries');
+        const collectionRef = collection(db, 'artifacts', appId, 'users', user.uid, 'dsr_entries');
         let importCount = 0;
 
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i].split(',');
-          // Check for minimum expected columns
           if (row.length < 10) continue;
 
           const dateStr = row[0].trim();
           const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
           if (dateRegex.test(dateStr)) {
-            // Import Mapping (Legacy CSV format - simplified for this example)
-            const totalSale = parseFloat(row[1]) || 0;
-            const pos = parseFloat(row[2]) || 0;
-            const swiggy = parseFloat(row[3]) || 0;
-            const zomatoOnline = parseFloat(row[4]) || 0;
-            const zomatoCash = parseFloat(row[5]) || 0;
-            const uengageOnline = parseFloat(row[6]) || 0;
-            const uengageCash = parseFloat(row[7]) || 0;
-            const cash = parseFloat(row[8]) || 0; // Counter Cash Sale
-            const totalExpense = parseFloat(row[9]) || 0;
-            const physicalCash = (parseFloat(row[10]) || 0) + OPENING_CASH_BALANCE; // CSV is net, so add opening
-            const difference = parseFloat(row[11]) || 0;
-            const comment = row[12] ? row[12].trim().replace(/"/g, '') : '';
+            // Import Mapping (Legacy CSV format)
+            const pos = parseFloat(row[5]) ||
+0;
+            const swiggy = parseFloat(row[6]) || 0;
+            // Map legacy uengage/zomato columns to online
+            const uengage = parseFloat(row[7]) || 0;
+            const zomato = parseFloat(row[9]) || 0;
+            const cash = parseFloat(row[13]) || 0;
+            const otherExpense = parseFloat(row[14]) || 0;
+            const deposit = parseFloat(row[15]) || 0;
+            const cashInHand = parseFloat(row[16]) || 0;
+            const difference = parseFloat(row[17]) || 0;
 
+            const totalSale = pos + swiggy + uengage + zomato + cash;
+            const totalExpense = otherExpense; // Assuming otherExpense is total expense from legacy
+            const physicalCash = cashInHand - difference; // This is a rough back-calculation from legacy, often inaccurate
+            
+            // Build simple expense list for consistency (assuming a single expense row in legacy)
+            const expensesList = totalExpense > 0 ? [{ description: "Misc. Expense (Imported)", amount: totalExpense }] : [];
 
-            // --- Calculated values from the legacy format ---
-            const theoreticalCashInHand = physicalCash - difference;
-
+            const docRef = doc(collectionRef);
             const entryData = {
               date: dateStr,
               totalSale,
-              comment,
+              comment: row[18]?.trim() || '',
               sales: {
                 pos,
                 swiggy,
-                uengageOnline,
-                uengageCash,
-                zomatoOnline,
-                zomatoCash,
+                uengageOnline: uengage,
+                uengageCash: 0,
+                zomatoOnline: zomato,
+                zomatoCash: 0,
                 cash
               },
-              expenses: [], // Legacy format often aggregates expenses, so we leave it empty or try to parse from comment
+              expenses: expensesList,
               denominations: {},
               totalExpense,
               openingBalance: OPENING_CASH_BALANCE,
-              cashInHand: theoreticalCashInHand,
-              physicalCash,
-              difference,
+              cashInHand,
+              physicalCash: 0,
+              difference: 0,
               createdAt: serverTimestamp()
             };
-
-            const docRef = doc(collectionRef);
             batch.set(docRef, entryData);
             importCount++;
           }
@@ -1056,7 +1004,7 @@ const HistoryView = ({ entries, user }) => {
 
         if (importCount > 0) {
           await batch.commit();
-          alert(`Successfully imported ${importCount} records! (Note: Only core fields were mapped and expenses were not detailed.)`);
+          alert(`Successfully imported ${importCount} records!`);
         } else {
           alert("Could not find any valid records.");
         }
@@ -1074,24 +1022,16 @@ const HistoryView = ({ entries, user }) => {
   const exportToCSV = () => {
     // Define Headers matching the table structure
     const headers = [
-      "Date",
-      "Total Sale",
-      "POS (UPI/CC)",
-      "Swiggy",
-      "Zomato Online",
-      "Zomato Cash",
-      "Uengage Online",
-      "Uengage Cash",
-      "Counter Cash Sale",
-      "Total Expenses",
-      "Net Physical Cash (W/O Deposit)",
-      "Short/Excess",
-      "Comments"
+      "Date", "Total Sale", "POS (UPI/CC)", "Swiggy", "Zomato Online", "Zomato Cash", "Uengage Online", "Uengage Cash", 
+      "Cash Sale", // CHANGE 3: Column name changed
+      "Expenses", "Physical Cash (W/O Deposit)", "Short/Excess", "Comments"
     ];
     const csvRows = [headers.join(',')];
 
     sortedEntries.forEach(entry => {
-      const physicalWithoutDeposit = (entry.physicalCash || 0) - OPENING_CASH_BALANCE;
+      // Net Physical Cash calculation
+      const netPhysical = (entry.physicalCash || 0) - (entry.openingBalance || 0);
+
       const row = [
         entry.date,
         entry.totalSale || 0,
@@ -1103,7 +1043,7 @@ const HistoryView = ({ entries, user }) => {
         entry.sales?.uengageCash || 0,
         entry.sales?.cash || 0,
         entry.totalExpense || 0,
-        physicalWithoutDeposit, // Net Physical Cash
+        netPhysical, // Net Physical Cash
         entry.difference || 0,
         `"${(entry.comment || '').replace(/"/g, '""')}"` // Escape comments
       ];
@@ -1120,10 +1060,8 @@ const HistoryView = ({ entries, user }) => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
+  const handlePrint = () => 
+{ window.print(); };
 
   return (
     <div className="space-y-6">
@@ -1156,32 +1094,41 @@ const HistoryView = ({ entries, user }) => {
             />
           </div>
         </div>
+      </div>
 
-        {/* Action Buttons */}
-        <div className="flex space-x-3">
-          <button onClick={handlePrint} className="flex items-center space-x-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm shadow-sm no-print">
-            <Printer size={16} /> <span>Print</span>
-          </button>
-          <button onClick={exportToCSV} className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm shadow-sm">
-            <Download size={16} /> <span>Export CSV</span>
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".csv"
-            style={{ display: 'none' }}
-          />
-          <button
-            onClick={() => fileInputRef.current.click()}
-            disabled={isImporting}
-            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm"
-          >
-            {isImporting ?
-              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Upload size={16} />}
-            <span>Import</span>
-          </button>
-        </div>
+      {/* Control Buttons */}
+      <div className="flex justify-start space-x-3 no-print">
+        <button
+          onClick={handlePrint}
+          className="flex items-center space-x-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm shadow-sm"
+        >
+          <Printer size={16} />
+          <span>Print Report</span>
+        </button>
+        <button
+          onClick={exportToCSV}
+          className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm shadow-sm"
+        >
+          <Download size={16} />
+          <span>Export CSV</span>
+        </button>
+        {/* File Import Button */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".csv,text/csv"
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current.click()}
+          disabled={isImporting}
+          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm"
+        >
+          {isImporting ?
+            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Upload size={16} />}
+          <span>Import</span>
+        </button>
       </div>
 
       {/* Expense Modal */}
@@ -1204,62 +1151,64 @@ const HistoryView = ({ entries, user }) => {
                 <p className="text-gray-500 text-center py-4">No expenses recorded.</p>
               )}
               <div 
-                className="flex justify-between pt-4 border-t mt-4 font-bold text-lg">
+className="flex justify-between pt-4 border-t mt-4 font-bold text-lg">
                 <span>Total</span>
                 <span>₹{selectedExpenseEntry.totalExpense}</span>
               </div>
+            </div>
+            <div className="text-xs text-gray-500 italic mt-4 p-2 bg-gray-50 rounded">
+              Note: {selectedExpenseEntry.comment || 'No comment recorded for this day.'}
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Table - ADDED SCROLL WRAPPER */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="min-w-max md:min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 sticky top-0">
-              <tr>
-                <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Date</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sale</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">POS/UPI</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Swiggy</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Zomato</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Uengage</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Counter Cash</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cash In Hand</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Physical</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Short/Excess</th>
-                <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
-                <th className="p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
+      {/* Main Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+        <div className="min-w-full">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                <th className="p-3">Date</th>
+                <th className="p-3 text-right">Total Sale</th>
+                <th className="p-3 text-right">POS (UPI/CC)</th>
+                <th className="p-3 text-right">Swiggy</th>
+                <th className="p-3 text-right">Zomato (Online+Cash)</th>
+                <th className="p-3 text-right">Uengage (Online+Cash)</th>
+                <th className="p-3 text-right">Cash Sale</th>
+                <th className="p-3 text-right">Expenses</th>
+                <th className="p-3 text-right">Theoretical Cash In Hand</th>
+                <th className="p-3 text-right">Physical Cash Count</th>
+                <th className="p-3 text-right font-bold text-indigo-700 bg-indigo-50">Net Physical Cash (W/O Deposit)</th>
+                <th className="p-3 text-right">Short/Excess</th>
+                <th className="p-3">Comment</th>
+                <th className="p-3 no-print">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100">
               {sortedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="p-6 text-center text-gray-500">
-                    No entries found for this date range.
+                  <td colSpan="14" className="p-10 text-center text-gray-500">
+                    No entries found for the selected date range.
                   </td>
                 </tr>
               ) : (
-                sortedEntries.map(entry => {
-                  const totalOnline = (entry.sales?.pos || 0) + (entry.sales?.swiggy || 0) + (entry.sales?.zomatoOnline || 0) + (entry.sales?.uengageOnline || 0);
-                  const totalCash = (entry.sales?.cash || 0) + (entry.sales?.zomatoCash || 0) + (entry.sales?.uengageCash || 0);
-                  const netPhysical = (entry.physicalCash || 0) - OPENING_CASH_BALANCE;
+                sortedEntries.map((entry) => {
+                  const netPhysical = (entry.physicalCash || 0) - (entry.openingBalance || 0);
+                  
                   return (
                     <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="p-3 font-medium text-gray-900 sticky left-0 bg-white">{entry.date}</td>
-                      <td className="p-3 text-right font-bold">₹{entry.totalSale.toLocaleString()}</td>
-                      <td className="p-3 text-right text-gray-700">₹{(entry.sales?.pos || 0).toLocaleString()}</td>
-                      <td className="p-3 text-right text-gray-700">₹{(entry.sales?.swiggy || 0).toLocaleString()}</td>
-                      <td className="p-3 text-right text-gray-700">₹{((entry.sales?.zomatoOnline || 0) + (entry.sales?.zomatoCash || 0)).toLocaleString()}</td>
-                      <td className="p-3 text-right text-gray-700">₹{((entry.sales?.uengageOnline || 0) + (entry.sales?.uengageCash || 0)).toLocaleString()}</td>
-                      <td className="p-3 text-right font-medium text-green-700 bg-green-50">₹{(entry.sales?.cash || 0).toLocaleString()}</td>
-
-                      <td className="p-3 text-right text-red-600">
-                        <div className="flex items-center justify-end space-x-2">
-                          <span>- ₹{entry.totalExpense.toLocaleString()}</span>
-                          {(entry.expenses?.length > 0) && (
+                      <td className="p-3 font-medium text-gray-900">{entry.date}</td>
+                      <td className="p-3 text-right font-bold text-blue-600">₹{entry.totalSale.toLocaleString()}</td>
+                      <td className="p-3 text-right">{entry.sales?.pos.toLocaleString()}</td>
+                      <td className="p-3 text-right">{entry.sales?.swiggy.toLocaleString()}</td>
+                      <td className="p-3 text-right">{(entry.sales?.zomatoOnline + entry.sales?.zomatoCash).toLocaleString()}</td>
+                      <td className="p-3 text-right">{(entry.sales?.uengageOnline + entry.sales?.uengageCash).toLocaleString()}</td>
+                      <td className="p-3 text-right font-medium text-green-600">₹{entry.sales?.cash.toLocaleString()}</td>
+                      <td className="p-3 text-right font-bold text-red-600">
+                        <div className="flex items-center justify-end space-x-1">
+                          <span>₹{entry.totalExpense.toLocaleString()}</span>
+                          {entry.expenses && entry.expenses.length > 0 && (
                             <button onClick={() => setSelectedExpenseEntry(entry)} className="no-print text-gray-400 hover:text-blue-600">
                               <Eye size={12} />
                             </button>
@@ -1267,8 +1216,14 @@ const HistoryView = ({ entries, user }) => {
                         </div>
                       </td>
 
-                      <td className="p-3 text-right font-bold text-gray-900">
+                      {/* Theoretical Cash In Hand */}
+                      <td className="p-3 text-right text-indigo-600">
                         ₹{entry.cashInHand.toLocaleString()}
+                      </td>
+
+                      {/* Physical Cash Count */}
+                      <td className="p-3 text-right font-bold">
+                        ₹{entry.physicalCash.toLocaleString()}
                       </td>
 
                       {/* Net Physical Cash (Without Opening Deposit) */}
@@ -1277,7 +1232,7 @@ const HistoryView = ({ entries, user }) => {
                       </td>
 
                       <td className={`p-3 text-right font-bold ${entry.difference < 0 ? 'text-red-600' : entry.difference > 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                        {entry.difference || '-'}
+                        {entry.difference.toLocaleString()}
                       </td>
 
                       <td className="p-3 text-xs text-gray-500 italic max-w-xs truncate" title={entry.comment}>
