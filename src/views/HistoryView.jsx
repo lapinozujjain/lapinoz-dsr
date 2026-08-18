@@ -143,8 +143,13 @@ export default function HistoryView({ entries, user }) {
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
               {selectedExpenseEntry.expenses && selectedExpenseEntry.expenses.length > 0 ? (
                 selectedExpenseEntry.expenses.map((exp, idx) => (
-                  <div key={idx} className="flex justify-between p-2 bg-gray-50 rounded">
-                    <span className="font-medium text-gray-700">{exp.description}</span>
+                  <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div>
+                      {exp.category && (
+                        <span className="block text-xs text-gray-400">{exp.category}</span>
+                      )}
+                      <span className="font-medium text-gray-700">{exp.description || exp.category || 'Expense'}</span>
+                    </div>
                     <span className="text-red-500 font-bold">{formatCurrency(exp.amount)}</span>
                   </div>
                 ))

@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import {
-  PlusCircle, AlertCircle, Calculator, MessageSquare, Lock, Save, Trash2
+  PlusCircle, AlertCircle, Calculator, MessageSquare, Lock, Save, Trash2, RotateCcw
 } from 'lucide-react';
 import { db, ENTRIES_COLLECTION } from '../firebase';
-import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS } from '../constants';
-import { formatCurrency } from '../utils/date';
+import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS, EXPENSE_CATEGORIES } from '../constants';
+import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+
+const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', zomatoOnline: '', zomatoCash: '' };
+const EMPTY_DENOMINATIONS = Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']));
+const EMPTY_EXPENSE_ROW = () => ({ id: Date.now(), category: '', description: '', amount: '' });
 
 export default function NewEntryForm({ user, onSuccess, existingEntries }) {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  // Entries can only be created for the current month — min/max on the
+  // date input plus a check inside validate() so a manipulated/cached
+  // input can't slip a backdated or future entry through.
+  const monthStart = getFirstDayOfMonth();
+  const today = getToday();
+
+  const [date, setDate] = useState(today);
   const [totalSaleInput, setTotalSaleInput] = useState('');
   const [comment, setComment] = useState('');
 
-  const [sales, setSales] = useState({
-    pos: '', swiggy: '', uengageOnline: '', uengageCash: '', zomatoOnline: '', zomatoCash: ''
-  });
-
-  const [expenses, setExpenses] = useState([{ id: 1, description: '', amount: '' }]);
-  const [denominations, setDenominations] = useState(
-    Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']))
-  );
+  const [sales, setSales] = useState(EMPTY_SALES);
+  const [expenses, setExpenses] = useState([EMPTY_EXPENSE_ROW()]);
+  const [denominations, setDenominations] = useState(EMPTY_DENOMINATIONS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -46,15 +51,50 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
   const handleExpenseChange = (id, field, value) => {
     setExpenses(prev => prev.map(exp => exp.id === id ? { ...exp, [field]: value } : exp));
   };
-  const addExpenseRow = () => setExpenses([...expenses, { id: Date.now(), description: '', amount: '' }]);
+  const addExpenseRow = () => setExpenses([...expenses, EMPTY_EXPENSE_ROW()]);
   const removeExpenseRow = (id) => setExpenses(expenses.filter(e => e.id !== id));
+
+  const resetForm = () => {
+    if (!confirm("Reset the form? All entries you've made will be cleared.")) return;
+    setDate(today);
+    setTotalSaleInput('');
+    setComment('');
+    setSales(EMPTY_SALES);
+    setExpenses([EMPTY_EXPENSE_ROW()]);
+    setDenominations(EMPTY_DENOMINATIONS);
+    setValidationError('');
+  };
 
   const validate = () => {
     if (totalSale <= 0) return "Total Daily Sale must be greater than 0.";
+
     if (pos < 0 || swiggy < 0 || uengageOnline < 0 || uengageCash < 0 || zomatoOnline < 0 || zomatoCash < 0) {
       return "Revenue sources cannot be negative.";
     }
-    if (expenses.some(e => (parseFloat(e.amount) || 0) < 0)) return "Expenses cannot be negative.";
+
+    // Counter Cash Sale is derived (Total Sale minus every other source) —
+    // if it goes negative, the other fields add up to more than the
+    // total sale, which isn't possible since there's no such thing as a
+    // negative cash sale.
+    if (calculatedCashSale < 0) {
+      return "Calculated Counter Cash Sale cannot be negative. The other revenue sources add up to more than the Total Daily Sale — please check your entries.";
+    }
+
+    if (expenses.some(e => (parseFloat(e.amount) || 0) < 0)) {
+      return "Expenses cannot be negative.";
+    }
+    if (expenses.some(e => (parseFloat(e.amount) || 0) > 0 && !e.category)) {
+      return "Please select a category for every expense that has an amount.";
+    }
+
+    if (Object.values(denominations).some(v => (parseFloat(v) || 0) < 0)) {
+      return "Cash drawer counts cannot be negative.";
+    }
+
+    if (date < monthStart || date > today) {
+      return "New entries can only be created for the current month (and not for a future date).";
+    }
+
     return null;
   };
 
@@ -82,7 +122,8 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
       totalSale,
       comment,
       sales: { pos, swiggy, uengageOnline, uengageCash, zomatoOnline, zomatoCash, cash: calculatedCashSale },
-      expenses: expenses.filter(e => e.description && e.amount).map(e => ({
+      expenses: expenses.filter(e => e.amount).map(e => ({
+        category: e.category,
         description: e.description,
         amount: parseFloat(e.amount) || 0
       })),
@@ -124,16 +165,17 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
           <div className="w-full md:w-1/3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
             <input
-              type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              type="date" value={date} min={monthStart} max={today} onChange={(e) => setDate(e.target.value)}
               className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
             />
+            <p className="text-xs text-gray-400 mt-1">Entries can only be made for the current month.</p>
           </div>
           <div className="w-full md:w-2/3">
             <label className="block text-sm font-bold text-gray-800 mb-1">Total Daily Sale (From Billing Software)</label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-gray-500 font-bold">₹</span>
               <input
-                type="number" value={totalSaleInput} onChange={(e) => setTotalSaleInput(e.target.value)}
+                type="number" min="0" value={totalSaleInput} onChange={(e) => setTotalSaleInput(e.target.value)}
                 placeholder="Enter total sale of the day"
                 className="w-full pl-8 p-3 border-2 border-blue-100 rounded-lg text-lg font-bold text-gray-900 focus:border-blue-500 outline-none transition-colors"
               />
@@ -153,7 +195,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                 <label className="text-sm text-gray-600 font-medium">POS (UPI/CC)</label>
                 <div className="relative w-1/2">
                   <span className="absolute left-3 top-2 text-gray-400">₹</span>
-                  <input type="number" placeholder="0" value={sales.pos} onChange={(e) => setSales({ ...sales, pos: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
+                  <input type="number" min="0" placeholder="0" value={sales.pos} onChange={(e) => setSales({ ...sales, pos: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
                 </div>
               </div>
 
@@ -161,7 +203,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                 <label className="text-sm text-gray-600 font-medium">Swiggy</label>
                 <div className="relative w-1/2">
                   <span className="absolute left-3 top-2 text-gray-400">₹</span>
-                  <input type="number" placeholder="0" value={sales.swiggy} onChange={(e) => setSales({ ...sales, swiggy: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
+                  <input type="number" min="0" placeholder="0" value={sales.swiggy} onChange={(e) => setSales({ ...sales, swiggy: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
                 </div>
               </div>
 
@@ -172,11 +214,11 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-2 top-2 text-xs text-gray-400">Online</span>
-                    <input type="number" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    <input type="number" min="0" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                   </div>
                   <div className="relative flex-1">
                     <span className="absolute left-2 top-2 text-xs text-gray-400">Cash</span>
-                    <input type="number" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    <input type="number" min="0" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                   </div>
                 </div>
               </div>
@@ -188,11 +230,11 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-2 top-2 text-xs text-gray-400">Online</span>
-                    <input type="number" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    <input type="number" min="0" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                   </div>
                   <div className="relative flex-1">
                     <span className="absolute left-2 top-2 text-xs text-gray-400">Cash</span>
-                    <input type="number" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    <input type="number" min="0" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                   </div>
                 </div>
               </div>
@@ -216,22 +258,34 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
               </div>
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {expenses.map((exp) => (
-                  <div key={exp.id} className="flex gap-2">
+                  <div key={exp.id} className="flex flex-col gap-1 p-2 bg-gray-50 rounded-md border border-gray-100">
+                    <div className="flex gap-2">
+                      <select
+                        value={exp.category}
+                        onChange={(e) => handleExpenseChange(exp.id, 'category', e.target.value)}
+                        className="flex-1 p-2 border rounded-md text-sm bg-white"
+                      >
+                        <option value="">Select category...</option>
+                        {EXPENSE_CATEGORIES.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number" min="0" placeholder="Amt" value={exp.amount}
+                        onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
+                        className="w-24 p-2 border rounded-md text-sm text-right bg-white"
+                      />
+                      {expenses.length > 1 && (
+                        <button onClick={() => removeExpenseRow(exp.id)} className="text-red-400 hover:text-red-600 px-1">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                     <input
-                      type="text" placeholder="Description (e.g. Milk)" value={exp.description}
+                      type="text" placeholder="Note (optional)" value={exp.description}
                       onChange={(e) => handleExpenseChange(exp.id, 'description', e.target.value)}
-                      className="flex-1 p-2 border rounded-md text-sm"
+                      className="p-2 border rounded-md text-sm bg-white"
                     />
-                    <input
-                      type="number" placeholder="Amt" value={exp.amount}
-                      onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
-                      className="w-24 p-2 border rounded-md text-sm text-right"
-                    />
-                    {expenses.length > 1 && (
-                      <button onClick={() => removeExpenseRow(exp.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
@@ -263,7 +317,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                   <div key={denom} className="flex flex-col">
                     <label className="text-xs text-gray-500 mb-1">x {denom}</label>
                     <input
-                      type="number" placeholder="Qty" value={denominations[denom]}
+                      type="number" min="0" placeholder="Qty" value={denominations[denom]}
                       onChange={(e) => setDenominations({ ...denominations, [denom]: e.target.value })}
                       className="p-1 border rounded text-center text-sm"
                     />
@@ -316,7 +370,14 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex justify-end gap-3">
+          <button
+            onClick={resetForm} disabled={isSubmitting}
+            className="flex items-center space-x-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 shadow-sm transition-all disabled:opacity-50"
+          >
+            <RotateCcw size={18} />
+            <span>Reset</span>
+          </button>
           <button
             onClick={handleSubmit} disabled={isSubmitting}
             className="flex items-center space-x-2 bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 shadow-md transition-all disabled:opacity-50"
