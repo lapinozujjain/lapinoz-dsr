@@ -1,17 +1,37 @@
 import { useMemo, useState } from 'react';
-import { getFirstDayOfMonth, getToday } from '../utils/date';
+import { getFirstDayOfMonth, getOneYearAgo, getToday } from '../utils/date';
 
-// Previously this exact block (state + filter) was copy-pasted into both
-// Dashboard and HistoryView. Centralizing it means a fix or a feature
-// (e.g. "last 7 days" presets) only needs to happen once.
+// Two layers of date state:
+//  - draftStart/draftEnd: bound directly to the date <input>s, update as
+//    the user picks dates.
+//  - startDate/endDate: the "applied" range that filteredEntries is
+//    actually computed from. Only changes when fetchReports() runs.
+// This means typing/selecting a date doesn't immediately re-filter the
+// (possibly large) entries list on every change — filtering only happens
+// once, when the Fetch button is clicked.
 export function useDateRangeFilter(entries) {
-  const [startDate, setStartDate] = useState(getFirstDayOfMonth());
-  const [endDate, setEndDate] = useState(getToday());
+  const defaultStart = getFirstDayOfMonth();
+  const defaultEnd = getToday();
+
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(defaultEnd);
+  const [draftStart, setDraftStart] = useState(defaultStart);
+  const [draftEnd, setDraftEnd] = useState(defaultEnd);
 
   const filteredEntries = useMemo(
     () => entries.filter(e => e.date >= startDate && e.date <= endDate),
     [entries, startDate, endDate]
   );
 
-  return { startDate, setStartDate, endDate, setEndDate, filteredEntries };
+  const fetchReports = () => {
+    setStartDate(draftStart);
+    setEndDate(draftEnd);
+  };
+
+  return {
+    startDate, endDate,
+    draftStart, draftEnd, setDraftStart, setDraftEnd,
+    filteredEntries, fetchReports,
+    minDate: getOneYearAgo(),
+  };
 }

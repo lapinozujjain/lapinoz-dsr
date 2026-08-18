@@ -8,7 +8,7 @@ import { useDateRangeFilter } from '../hooks/useDateRangeFilter';
 import { formatCurrency } from '../utils/date';
 
 export default function Dashboard({ entries }) {
-  const { startDate, setStartDate, endDate, setEndDate, filteredEntries } = useDateRangeFilter(entries);
+  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate } = useDateRangeFilter(entries);
 
   // All of these were previously plain `.reduce()` calls re-run on every
   // render (including renders triggered by unrelated state, e.g. opening
@@ -52,7 +52,11 @@ export default function Dashboard({ entries }) {
           <h2 className="text-2xl font-bold text-gray-800">Overview</h2>
           <p className="text-gray-500">Performance from {startDate} to {endDate}</p>
         </div>
-        <DateRangePicker startDate={startDate} endDate={endDate} onStartChange={setStartDate} onEndChange={setEndDate} />
+        <DateRangePicker
+          startDate={draftStart} endDate={draftEnd}
+          onStartChange={setDraftStart} onEndChange={setDraftEnd}
+          onFetch={fetchReports} minDate={minDate}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">

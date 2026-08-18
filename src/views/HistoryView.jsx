@@ -1,18 +1,20 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
-import { Download, Printer, Upload, Eye, X, Trash2, Calendar } from 'lucide-react';
+import { Download, Printer, Upload, Eye, X, Trash2 } from 'lucide-react';
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE } from '../constants';
 import { formatCurrency } from '../utils/date';
 import { CSV_HEADERS, entryToCsvRow, parseDsrCsv } from '../utils/csv';
 import { useDateRangeFilter } from '../hooks/useDateRangeFilter';
+import { DateRangePicker, ConfirmDialog } from '../components/common';
 
 export default function HistoryView({ entries, user }) {
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-  const { startDate, setStartDate, endDate, setEndDate, filteredEntries } = useDateRangeFilter(entries);
+  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate } = useDateRangeFilter(entries);
 
   // Oldest-first for the table/export, independent of the dashboard's
   // newest-first order.
@@ -21,14 +23,14 @@ export default function HistoryView({ entries, user }) {
     [filteredEntries]
   );
 
-  const handleDelete = async (id) => {
-    if (confirm("Are you sure you want to delete this entry? This cannot be undone.")) {
-      try {
-        if (!user?.uid) return;
-        await deleteDoc(doc(db, ENTRIES_COLLECTION, id));
-      } catch (e) {
-        console.error("Error deleting", e);
-      }
+  const confirmDelete = async () => {
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+    if (!user?.uid || !id) return;
+    try {
+      await deleteDoc(doc(db, ENTRIES_COLLECTION, id));
+    } catch (e) {
+      console.error("Error deleting", e);
     }
   };
 
@@ -97,22 +99,11 @@ export default function HistoryView({ entries, user }) {
           <p className="text-gray-500 text-sm">Showing {sortedEntries.length} entries ({startDate} to {endDate})</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center gap-2">
-            <Calendar size={16} className="text-gray-400" />
-            <input
-              type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} max={endDate}
-              className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
-            />
-          </div>
-          <span className="text-gray-400">-</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate}
-              className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
-            />
-          </div>
-        </div>
+        <DateRangePicker
+          startDate={draftStart} endDate={draftEnd}
+          onStartChange={setDraftStart} onEndChange={setDraftEnd}
+          onFetch={fetchReports} minDate={minDate}
+        />
 
         <div className="flex space-x-3">
           <button onClick={handlePrint} className="flex items-center space-x-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm shadow-sm no-print">
@@ -228,7 +219,7 @@ export default function HistoryView({ entries, user }) {
                       </td>
 
                       <td className="p-3 text-center no-print">
-                        <button onClick={() => handleDelete(entry.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => setConfirmDeleteId(entry.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -240,6 +231,16 @@ export default function HistoryView({ entries, user }) {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Delete entry?"
+        message="Are you sure you want to delete this entry? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

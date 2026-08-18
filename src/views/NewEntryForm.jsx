@@ -6,6 +6,7 @@ import {
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS, EXPENSE_CATEGORIES } from '../constants';
 import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+import { ConfirmDialog } from '../components/common';
 
 const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', zomatoOnline: '', zomatoCash: '' };
 const EMPTY_DENOMINATIONS = Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']));
@@ -27,6 +28,12 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
   const [denominations, setDenominations] = useState(EMPTY_DENOMINATIONS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState('');
+  // Drives the ConfirmDialog for both Reset and the duplicate-date
+  // warning — replaces window.confirm(), which blocks the main thread
+  // for as long as the dialog is open (that's what was triggering the
+  // "event handler blocked UI updates" INP warning on the Reset button).
+  const [confirmState, setConfirmState] = useState(null);
+  const closeConfirm = () => setConfirmState(null);
 
   const totalSale = parseFloat(totalSaleInput) || 0;
   const pos = parseFloat(sales.pos) || 0;
@@ -54,8 +61,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
   const addExpenseRow = () => setExpenses([...expenses, EMPTY_EXPENSE_ROW()]);
   const removeExpenseRow = (id) => setExpenses(expenses.filter(e => e.id !== id));
 
-  const resetForm = () => {
-    if (!confirm("Reset the form? All entries you've made will be cleared.")) return;
+  const performReset = () => {
     setDate(today);
     setTotalSaleInput('');
     setComment('');
@@ -64,6 +70,14 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
     setDenominations(EMPTY_DENOMINATIONS);
     setValidationError('');
   };
+
+  const requestReset = () => setConfirmState({
+    title: "Reset form?",
+    message: "All entries you've made will be cleared.",
+    confirmLabel: "Reset",
+    danger: true,
+    onConfirm: () => { performReset(); closeConfirm(); }
+  });
 
   const validate = () => {
     if (totalSale <= 0) return "Total Daily Sale must be greater than 0.";
@@ -86,6 +100,9 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
     if (expenses.some(e => (parseFloat(e.amount) || 0) > 0 && !e.category)) {
       return "Please select a category for every expense that has an amount.";
     }
+    if (expenses.some(e => (parseFloat(e.amount) || 0) > 0 && !e.description.trim())) {
+      return "Please add a note for every expense that has an amount.";
+    }
 
     if (Object.values(denominations).some(v => (parseFloat(v) || 0) < 0)) {
       return "Cash drawer counts cannot be negative.";
@@ -98,17 +115,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
     return null;
   };
 
-  const handleSubmit = async () => {
-    if (!user) return;
-    setValidationError('');
-
-    const duplicate = existingEntries.find(e => e.date === date);
-    if (duplicate) {
-      if (!confirm(`Warning: A report for ${date} already exists. Do you want to continue and add another entry for this date?`)) {
-        return;
-      }
-    }
-
+  const proceedSubmit = async () => {
     const error = validate();
     if (error) {
       setValidationError(error);
@@ -145,6 +152,25 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = () => {
+    if (!user) return;
+    setValidationError('');
+
+    const duplicate = existingEntries.find(e => e.date === date);
+    if (duplicate) {
+      setConfirmState({
+        title: "Duplicate date",
+        message: `A report for ${date} already exists. Continue and add another entry for this date?`,
+        confirmLabel: "Continue",
+        danger: true,
+        onConfirm: () => { closeConfirm(); proceedSubmit(); }
+      });
+      return;
+    }
+
+    proceedSubmit();
   };
 
   return (
@@ -282,7 +308,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                       )}
                     </div>
                     <input
-                      type="text" placeholder="Note (optional)" value={exp.description}
+                      type="text" placeholder="Note (required)" value={exp.description}
                       onChange={(e) => handleExpenseChange(exp.id, 'description', e.target.value)}
                       className="p-2 border rounded-md text-sm bg-white"
                     />
@@ -372,7 +398,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
 
         <div className="mt-8 flex justify-end gap-3">
           <button
-            onClick={resetForm} disabled={isSubmitting}
+            onClick={requestReset} disabled={isSubmitting}
             className="flex items-center space-x-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 shadow-sm transition-all disabled:opacity-50"
           >
             <RotateCcw size={18} />
@@ -387,6 +413,16 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title}
+        message={confirmState?.message}
+        confirmLabel={confirmState?.confirmLabel}
+        danger={confirmState?.danger}
+        onConfirm={confirmState?.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 }
