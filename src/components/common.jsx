@@ -68,13 +68,14 @@ export const NavButton = React.memo(({ active, onClick, icon, label }) => (
   </button>
 ));
 
-export const StatCard = React.memo(({ title, value, icon, color, size = 'md' }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 flex items-center space-x-4 ${size === 'sm' ? 'p-4' : 'p-6'}`}>
-    <div className={`p-3 rounded-full ${color}`}>{icon}</div>
+export const StatCard = React.memo(({ title, value, icon, color, size = 'md', action }) => (
+  <div className={`relative bg-white rounded-xl shadow-sm border border-gray-200 flex items-center space-x-4 ${size === 'sm' ? 'p-4' : 'p-6'}`}>
+    <div className={`p-3 rounded-full ${color} flex items-center justify-center`}>{icon}</div>
     <div>
       <p className="text-xs font-medium text-gray-500">{title}</p>
       <h4 className={`${size === 'sm' ? 'text-lg' : 'text-xl'} font-bold text-gray-900`}>{value}</h4>
     </div>
+    {action && <div className="absolute top-2 right-2">{action}</div>}
   </div>
 ));
 
