@@ -54,6 +54,10 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
     (acc, [denom, count]) => acc + (parseFloat(denom) * (parseFloat(count) || 0)), 0
   );
   const difference = physicalCash - theoreticalCashInHand;
+  // Envelope Cash = physical count minus the opening deposit — the actual
+  // cash that goes in the deposit envelope at close. Same calculation as
+  // the "Envelope Cash" column in Reports.
+  const envelopeCash = physicalCash - OPENING_CASH_BALANCE;
 
   const handleExpenseChange = (id, field, value) => {
     setExpenses(prev => prev.map(exp => exp.id === id ? { ...exp, [field]: value } : exp));
@@ -238,13 +242,19 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                   <label className="text-sm text-gray-600 font-medium">Zomato</label>
                 </div>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-2 top-2 text-xs text-gray-400">Online</span>
-                    <input type="number" min="0" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1">Online</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
+                      <input type="number" min="0" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    </div>
                   </div>
-                  <div className="relative flex-1">
-                    <span className="absolute left-2 top-2 text-xs text-gray-400">Cash</span>
-                    <input type="number" min="0" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1">Cash</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
+                      <input type="number" min="0" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -254,19 +264,25 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                   <label className="text-sm text-gray-600 font-medium">Uengage</label>
                 </div>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-2 top-2 text-xs text-gray-400">Online</span>
-                    <input type="number" min="0" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1">Online</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
+                      <input type="number" min="0" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    </div>
                   </div>
-                  <div className="relative flex-1">
-                    <span className="absolute left-2 top-2 text-xs text-gray-400">Cash</span>
-                    <input type="number" min="0" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} className="w-full pl-2 pr-2 pt-5 pb-1 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1">Cash</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
+                      <input type="number" min="0" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between items-center pt-2 mt-2 bg-green-50 p-3 rounded-lg border border-green-100">
-                <span className="font-bold text-gray-700">Calculated Counter Cash</span>
+                <span className="font-bold text-gray-700">Calculated Cash Sale</span>
                 <span className={`font-bold text-lg ${calculatedCashSale < 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {formatCurrency(calculatedCashSale)}
                 </span>
@@ -296,11 +312,14 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>
-                      <input
-                        type="number" min="0" placeholder="Amt" value={exp.amount}
-                        onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
-                        className="w-24 p-2 border rounded-md text-sm text-right bg-white"
-                      />
+                      <div className="relative w-24">
+                        <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
+                        <input
+                          type="number" min="0" placeholder="Amt" value={exp.amount}
+                          onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
+                          className="w-full pl-6 pr-2 p-2 border rounded-md text-sm text-right bg-white"
+                        />
+                      </div>
                       {expenses.length > 1 && (
                         <button onClick={() => removeExpenseRow(exp.id)} className="text-red-400 hover:text-red-600 px-1">
                           <Trash2 size={16} />
@@ -349,6 +368,11 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
                     />
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-4 flex justify-between items-center bg-green-50 border border-green-200 rounded-lg p-3">
+                <span className="font-bold text-gray-700">Envelope Cash</span>
+                <span className="font-bold text-lg text-green-700">{formatCurrency(envelopeCash)}</span>
               </div>
             </div>
 

@@ -33,5 +33,7 @@ export function useDateRangeFilter(entries) {
     draftStart, draftEnd, setDraftStart, setDraftEnd,
     filteredEntries, fetchReports,
     minDate: getOneYearAgo(),
+    // Reports can't be pulled for a date that hasn't happened yet.
+    maxDate: getToday(),
   };
 }

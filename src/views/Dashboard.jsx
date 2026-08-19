@@ -8,7 +8,7 @@ import { useDateRangeFilter } from '../hooks/useDateRangeFilter';
 import { formatCurrency } from '../utils/date';
 
 export default function Dashboard({ entries }) {
-  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate } = useDateRangeFilter(entries);
+  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate, maxDate } = useDateRangeFilter(entries);
 
   // All of these were previously plain `.reduce()` calls re-run on every
   // render (including renders triggered by unrelated state, e.g. opening
@@ -55,7 +55,7 @@ export default function Dashboard({ entries }) {
         <DateRangePicker
           startDate={draftStart} endDate={draftEnd}
           onStartChange={setDraftStart} onEndChange={setDraftEnd}
-          onFetch={fetchReports} minDate={minDate}
+          onFetch={fetchReports} minDate={minDate} maxDate={maxDate}
         />
       </div>
 

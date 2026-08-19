@@ -6,5 +6,5 @@ export const DEFAULT_DENOMINATION_STATE = Object.fromEntries(
 
 export const EXPENSE_CATEGORIES = [
   'Groceries & Dairy', 'Staff-Expense', 'Petrol', 'Maintenance',
-  'Advertisement', 'Salary', 'Stationary', 'Other'
+  'Advertisement', 'Salary', 'Stationary', 'Freight', 'Other'
 ];

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
-import { Download, Printer, Upload, Eye, X, Trash2 } from 'lucide-react';
+import { Download, Printer, Upload, Eye, X, Trash2, Info } from 'lucide-react';
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE } from '../constants';
 import { formatCurrency } from '../utils/date';
@@ -14,7 +14,7 @@ export default function HistoryView({ entries, user }) {
   const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate } = useDateRangeFilter(entries);
+  const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate, maxDate } = useDateRangeFilter(entries);
 
   // Oldest-first for the table/export, independent of the dashboard's
   // newest-first order.
@@ -102,7 +102,7 @@ export default function HistoryView({ entries, user }) {
         <DateRangePicker
           startDate={draftStart} endDate={draftEnd}
           onStartChange={setDraftStart} onEndChange={setDraftEnd}
-          onFetch={fetchReports} minDate={minDate}
+          onFetch={fetchReports} minDate={minDate} maxDate={maxDate}
         />
 
         <div className="flex space-x-3">
@@ -167,10 +167,20 @@ export default function HistoryView({ entries, user }) {
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Swiggy</th>
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Zomato</th>
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Uengage</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Counter Cash</th>
+                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Sale</th>
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cash In Hand</th>
-                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Physical</th>
+                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1">
+                    Total Cash Sale
+                    <span
+                      title="Total Cash Sale including counter and COD from Zomato and Uengage"
+                      className="text-gray-400 cursor-help normal-case font-normal"
+                    >
+                      <Info size={12} />
+                    </span>
+                  </span>
+                </th>
+                <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Envelope Cash</th>
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Short/Excess</th>
                 <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
                 <th className="p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
@@ -185,7 +195,9 @@ export default function HistoryView({ entries, user }) {
                 </tr>
               ) : (
                 sortedEntries.map(entry => {
-                  const netPhysical = (entry.physicalCash || 0) - OPENING_CASH_BALANCE;
+                  const envelopeCash = (entry.physicalCash || 0) - OPENING_CASH_BALANCE;
+                  // Total Cash Sale = Counter/Cash Sale + Zomato Cash (COD) + Uengage Cash (COD).
+                  const totalCashSale = (entry.sales?.cash || 0) + (entry.sales?.zomatoCash || 0) + (entry.sales?.uengageCash || 0);
                   return (
                     <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
                       <td className="p-3 font-medium text-gray-900 sticky left-0 bg-white">{entry.date}</td>
@@ -207,8 +219,8 @@ export default function HistoryView({ entries, user }) {
                         </div>
                       </td>
 
-                      <td className="p-3 text-right font-bold text-gray-900">{formatCurrency(entry.cashInHand)}</td>
-                      <td className="p-3 text-right font-bold text-indigo-700 bg-indigo-50">{formatCurrency(netPhysical)}</td>
+                      <td className="p-3 text-right font-bold text-gray-900">{formatCurrency(totalCashSale)}</td>
+                      <td className="p-3 text-right font-bold text-green-700 bg-green-50">{formatCurrency(envelopeCash)}</td>
 
                       <td className={`p-3 text-right font-bold ${entry.difference < 0 ? 'text-red-600' : entry.difference > 0 ? 'text-green-600' : 'text-gray-300'}`}>
                         {entry.difference || '-'}

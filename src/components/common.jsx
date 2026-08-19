@@ -1,40 +1,48 @@
 import React from 'react';
 import { Calendar, Search } from 'lucide-react';
+import { getToday } from '../utils/date';
 
-export const DateRangePicker = React.memo(({ startDate, endDate, onStartChange, onEndChange, onFetch, minDate }) => (
-  <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex-wrap">
-    <div className="flex items-center gap-2">
-      <Calendar size={16} className="text-gray-400" />
-      <input
-        type="date"
-        value={startDate}
-        onChange={(e) => onStartChange(e.target.value)}
-        min={minDate}
-        max={endDate}
-        className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
-      />
+export const DateRangePicker = React.memo(({ startDate, endDate, onStartChange, onEndChange, onFetch, minDate, maxDate }) => {
+  // Neither end of the range can go past today — a report can't cover a
+  // day that hasn't happened yet. Callers can still override maxDate if a
+  // future need calls for it; otherwise it defaults to today.
+  const cappedMax = maxDate || getToday();
+  return (
+    <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex-wrap">
+      <div className="flex items-center gap-2">
+        <Calendar size={16} className="text-gray-400" />
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => onStartChange(e.target.value)}
+          min={minDate}
+          max={endDate}
+          className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
+        />
+      </div>
+      <span className="text-gray-400">-</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => onEndChange(e.target.value)}
+          min={startDate}
+          max={cappedMax}
+          className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
+        />
+      </div>
+      {onFetch && (
+        <button
+          onClick={onFetch}
+          className="flex items-center gap-1.5 bg-green-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-green-700 transition-colors"
+        >
+          <Search size={14} />
+          <span>Fetch</span>
+        </button>
+      )}
     </div>
-    <span className="text-gray-400">-</span>
-    <div className="flex items-center gap-2">
-      <input
-        type="date"
-        value={endDate}
-        onChange={(e) => onEndChange(e.target.value)}
-        min={startDate}
-        className="text-sm border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none p-1 bg-transparent"
-      />
-    </div>
-    {onFetch && (
-      <button
-        onClick={onFetch}
-        className="flex items-center gap-1.5 bg-green-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-green-700 transition-colors"
-      >
-        <Search size={14} />
-        <span>Fetch</span>
-      </button>
-    )}
-  </div>
-));
+  );
+});
 
 export const MobileNavButton = React.memo(({ active, onClick, icon, label, isLogout = false }) => (
   <button
