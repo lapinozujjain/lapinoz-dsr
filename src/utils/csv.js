@@ -32,7 +32,7 @@ export function parseCsvLine(line) {
 export const CSV_HEADERS = [
   "Date", "Total Sale", "POS (UPI/CC)", "Swiggy",
   "Zomato Online", "Zomato Cash", "Uengage Online", "Uengage Cash",
-  "Counter Cash Sale", "Expenses", "Physical Cash (W/O Deposit)",
+  "Cash Sale", "Expenses", "Envelope Cash",
   "Short/Excess", "Comments"
 ];
 

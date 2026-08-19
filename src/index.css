@@ -1,3 +1,18 @@
 /* src/index.css */
 /* CRITICAL FIX for Tailwind v4+: Replaces @tailwind base, components, and utilities */
 @import 'tailwindcss';
+
+/* Tailwind's Preflight reset sets cursor: default on <button>, which
+   removes the hand/pointer cursor browsers normally show on clickable
+   elements — that's why buttons, icon buttons, and dropdowns across the
+   app weren't showing a hand cursor. Restoring it here once, app-wide,
+   instead of adding cursor-pointer to every individual button. */
+button:not(:disabled),
+[role="button"],
+select {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

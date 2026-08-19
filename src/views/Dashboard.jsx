@@ -19,14 +19,16 @@ export default function Dashboard({ entries }) {
     return filteredEntries.reduce((acc, e) => {
       acc.totalSales += parseFloat(e.totalSale) || 0;
       acc.totalExpenses += parseFloat(e.totalExpense) || 0;
-      acc.netCash += parseFloat(e.cashInHand) || 0;
       acc.cashSales += parseFloat(e.sales?.cash) || 0;
       acc.totalPOS += parseFloat(e.sales?.pos) || 0;
       acc.totalSwiggy += parseFloat(e.sales?.swiggy) || 0;
       acc.totalZomato += (parseFloat(e.sales?.zomatoOnline) || 0) + (parseFloat(e.sales?.zomatoCash) || 0);
       acc.totalUengage += (parseFloat(e.sales?.uengageOnline) || 0) + (parseFloat(e.sales?.uengageCash) || 0);
+      // Total Cash Sale = Cash Sale (counter) + Zomato Cash (COD) + Uengage Cash (COD) —
+      // same definition as the "Total Cash Sale" column in Reports.
+      acc.totalCashSale += (parseFloat(e.sales?.cash) || 0) + (parseFloat(e.sales?.zomatoCash) || 0) + (parseFloat(e.sales?.uengageCash) || 0);
       return acc;
-    }, { totalSales: 0, totalExpenses: 0, netCash: 0, cashSales: 0, totalPOS: 0, totalSwiggy: 0, totalZomato: 0, totalUengage: 0 });
+    }, { totalSales: 0, totalExpenses: 0, cashSales: 0, totalPOS: 0, totalSwiggy: 0, totalZomato: 0, totalUengage: 0, totalCashSale: 0 });
   }, [filteredEntries]);
 
   const chartData = useMemo(() => (
@@ -62,7 +64,7 @@ export default function Dashboard({ entries }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
         <StatCard title="Total Sales" value={formatCurrency(totals.totalSales)} icon={<TrendingUp className="text-blue-500" />} color="bg-blue-50" />
         <StatCard title="Counter Cash Sale" value={formatCurrency(totals.cashSales)} icon={<IndianRupee className="text-green-500" />} color="bg-green-50" />
-        <StatCard title="Net Cash In Hand" value={formatCurrency(totals.netCash)} icon={<Wallet className="text-purple-500" />} color="bg-purple-50" />
+        <StatCard title="Total Cash Sale" value={formatCurrency(totals.totalCashSale)} icon={<Wallet className="text-purple-500" />} color="bg-purple-50" />
         <StatCard title="Total Expenses" value={formatCurrency(totals.totalExpenses)} icon={<CreditCard className="text-red-500" />} color="bg-red-50" />
       </div>
 
@@ -87,12 +89,12 @@ export default function Dashboard({ entries }) {
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="pos" name="POS" stroke="#4b5563" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="swiggy" name="Swiggy" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="pos" name="POS" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="cash" name="Cash Sale" stroke="#eab308" strokeWidth={3} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="uengage" name="Uengage" stroke="#22c55e" strokeWidth={2} dot={{ r: 2 }} />
                 <Line type="monotone" dataKey="zomato" name="Zomato" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="uengage" name="Uengage" stroke="#6366f1" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="cash" name="Counter Cash" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#dc2626" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="swiggy" name="Swiggy" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#000000" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
