@@ -12,7 +12,7 @@ const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', z
 const EMPTY_DENOMINATIONS = Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']));
 const EMPTY_EXPENSE_ROW = () => ({ id: Date.now(), category: '', description: '', amount: '' });
 
-export default function NewEntryForm({ user, onSuccess, existingEntries }) {
+export default function NewEntryForm({ user, outlet, onSuccess, existingEntries }) {
   // Entries can only be created for the current month — min/max on the
   // date input plus a check inside validate() so a manipulated/cached
   // input can't slip a backdated or future entry through.
@@ -130,6 +130,7 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
 
     const entryData = {
       date,
+      outlet,
       totalSale,
       comment,
       sales: { pos, swiggy, uengageOnline, uengageCash, zomatoOnline, zomatoCash, cash: calculatedCashSale },
@@ -180,8 +181,13 @@ export default function NewEntryForm({ user, onSuccess, existingEntries }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold mb-6 flex items-center">
-          <PlusCircle className="mr-2 text-green-600" /> New Daily Sales Report
+        <h2 className="text-xl font-bold mb-6 flex items-center justify-between">
+          <span className="flex items-center">
+            <PlusCircle className="mr-2 text-green-600" /> New Daily Sales Report
+          </span>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+            {outlet}
+          </span>
         </h2>
 
         {validationError && (

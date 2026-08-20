@@ -1,6 +1,25 @@
 import React from 'react';
-import { Calendar, Search } from 'lucide-react';
+import { Calendar, Search, Store } from 'lucide-react';
 import { getToday } from '../utils/date';
+
+export const OutletSelector = React.memo(({ outlet, onChange, options, dark = false }) => (
+  <div className={`relative flex items-center ${dark ? 'text-gray-200' : 'text-gray-700'}`}>
+    <Store size={14} className={`absolute left-2.5 pointer-events-none ${dark ? 'text-gray-400' : 'text-gray-400'}`} />
+    <select
+      value={outlet}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-md border outline-none focus:ring-2 focus:ring-green-500 transition-colors ${
+        dark
+          ? 'bg-slate-800 border-slate-700 text-white'
+          : 'bg-white border-gray-300 text-gray-900'
+      }`}
+    >
+      {options.map(o => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
+  </div>
+));
 
 export const DateRangePicker = React.memo(({ startDate, endDate, onStartChange, onEndChange, onFetch, minDate, maxDate }) => {
   // Neither end of the range can go past today — a report can't cover a

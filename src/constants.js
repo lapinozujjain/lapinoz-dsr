@@ -8,3 +8,14 @@ export const EXPENSE_CATEGORIES = [
   'Groceries & Dairy', 'Staff-Expense', 'Petrol', 'Maintenance',
   'Advertisement', 'Salary', 'Stationary', 'Freight', 'Other'
 ];
+
+export const OUTLETS = ['FREEGANJ', 'NANAKHEDA'];
+
+// Entries saved before outlet tagging existed have no `outlet` field.
+// Per the decision made when this feature was added, all of that
+// historical data is attributed to NANAKHEDA — this constant is the
+// single place that assumption lives, so it's easy to find later if it
+// ever needs to change (e.g. after a manual data cleanup).
+export const DEFAULT_LEGACY_OUTLET = 'NANAKHEDA';
+
+export const OUTLET_STORAGE_KEY = 'dsr_selected_outlet';

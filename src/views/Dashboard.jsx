@@ -17,7 +17,7 @@ const SWIGGY_ICON = 'https://cdn.simpleicons.org/swiggy';
 // than guessing at a different logo file.
 const UENGAGE_ICON = 'https://cdn.uengage.io/brand_logo/logo-5-1759903116.png';
 
-export default function Dashboard({ entries }) {
+export default function Dashboard({ entries, outlet }) {
   const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate, maxDate } = useDateRangeFilter(entries);
   const [showExpenseBreakdown, setShowExpenseBreakdown] = useState(false);
 
@@ -77,7 +77,12 @@ export default function Dashboard({ entries }) {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 no-print">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Overview</h2>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            Overview
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+              {outlet}
+            </span>
+          </h2>
           <p className="text-gray-500">Performance from {startDate} to {endDate}</p>
         </div>
         <DateRangePicker

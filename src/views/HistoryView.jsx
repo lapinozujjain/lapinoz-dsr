@@ -8,7 +8,7 @@ import { CSV_HEADERS, entryToCsvRow, parseDsrCsv } from '../utils/csv';
 import { useDateRangeFilter } from '../hooks/useDateRangeFilter';
 import { DateRangePicker, ConfirmDialog } from '../components/common';
 
-export default function HistoryView({ entries, user }) {
+export default function HistoryView({ entries, user, outlet }) {
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null);
@@ -51,11 +51,12 @@ export default function HistoryView({ entries, user }) {
         const batch = writeBatch(db);
 
         parsed.forEach((entryData) => {
-          // Keying the doc ID by date makes re-importing the same file
-          // idempotent (updates that day's entry) instead of piling up a
-          // fresh duplicate document every time you import.
-          const docRef = doc(db, ENTRIES_COLLECTION, `csv_${entryData.date}`);
-          batch.set(docRef, { ...entryData, createdAt: serverTimestamp() });
+          // Keying the doc ID by outlet + date makes re-importing the same
+          // file idempotent (updates that day's entry for this outlet)
+          // instead of piling up a fresh duplicate every time — and keeps
+          // the two outlets from colliding if they share an import date.
+          const docRef = doc(db, ENTRIES_COLLECTION, `csv_${outlet}_${entryData.date}`);
+          batch.set(docRef, { ...entryData, outlet, createdAt: serverTimestamp() });
         });
 
         if (parsed.length > 0) {
@@ -84,7 +85,7 @@ export default function HistoryView({ entries, user }) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `dsr_report_${startDate}_to_${endDate}.csv`;
+    a.download = `dsr_report_${outlet}_${startDate}_to_${endDate}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -95,7 +96,12 @@ export default function HistoryView({ entries, user }) {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center no-print gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">History & Reports</h2>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            History & Reports
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+              {outlet}
+            </span>
+          </h2>
           <p className="text-gray-500 text-sm">Showing {sortedEntries.length} entries ({startDate} to {endDate})</p>
         </div>
 

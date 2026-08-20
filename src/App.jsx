@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   LayoutDashboard, PlusCircle, History, X
 } from 'lucide-react';
@@ -8,11 +8,23 @@ import {
   signInWithEmailAndPassword, signOut
 } from "firebase/auth";
 import { auth } from './firebase';
+import { OUTLETS, DEFAULT_LEGACY_OUTLET, OUTLET_STORAGE_KEY } from './constants';
 import { useEntries } from './hooks/useEntries';
-import { NavButton, MobileNavButton } from './components/common';
+import { NavButton, MobileNavButton, OutletSelector } from './components/common';
 import Dashboard from './views/Dashboard';
 import NewEntryForm from './views/NewEntryForm';
 import HistoryView from './views/HistoryView';
+
+const getStoredOutlet = () => {
+  try {
+    const stored = localStorage.getItem(OUTLET_STORAGE_KEY);
+    return OUTLETS.includes(stored) ? stored : OUTLETS[0];
+  } catch {
+    // localStorage can throw in some browser privacy modes — fall back
+    // to the default rather than crashing the app.
+    return OUTLETS[0];
+  }
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -22,8 +34,30 @@ export default function App() {
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [outlet, setOutlet] = useState(getStoredOutlet);
 
   const { entries, loading } = useEntries(user);
+
+  // Entries are fetched once (all outlets, last 1 year — see useEntries)
+  // and filtered to the selected outlet here, rather than adding a
+  // second Firestore query filter. This avoids requiring a composite
+  // index and keeps switching outlets instant (no refetch).
+  // Entries saved before outlet tagging existed have no `outlet` field —
+  // those fall back to DEFAULT_LEGACY_OUTLET.
+  const outletEntries = useMemo(
+    () => entries.filter(e => (e.outlet || DEFAULT_LEGACY_OUTLET) === outlet),
+    [entries, outlet]
+  );
+
+  const handleOutletChange = (value) => {
+    setOutlet(value);
+    try {
+      localStorage.setItem(OUTLET_STORAGE_KEY, value);
+    } catch {
+      // Ignore write failures (e.g. private browsing) — selection just
+      // won't persist across reloads.
+    }
+  };
 
   const handleAuth = async () => {
     setAuthError(null);
@@ -65,10 +99,10 @@ export default function App() {
     if (loading) return <div className="flex h-screen items-center justify-center text-gray-500">Loading your data...</div>;
 
     switch (view) {
-      case 'dashboard': return <Dashboard entries={entries} />;
-      case 'new': return <NewEntryForm user={user} onSuccess={() => setView('history')} existingEntries={entries} />;
-      case 'history': return <HistoryView entries={entries} user={user} />;
-      default: return <Dashboard entries={entries} />;
+      case 'dashboard': return <Dashboard entries={outletEntries} outlet={outlet} />;
+      case 'new': return <NewEntryForm user={user} outlet={outlet} onSuccess={() => setView('history')} existingEntries={outletEntries} />;
+      case 'history': return <HistoryView entries={outletEntries} user={user} outlet={outlet} />;
+      default: return <Dashboard entries={outletEntries} outlet={outlet} />;
     }
   };
 
@@ -141,6 +175,9 @@ export default function App() {
               <img src="https://cdn.uengage.io/brand_logo/logo-5-1759903116.png" alt="Company Logo" className="h-20 w-auto" />
             </div>
             <p className="text-l font-bold tracking-wider text-green-400">DSR Manager Ujjain</p>
+            <div className="mt-3">
+              <OutletSelector outlet={outlet} onChange={handleOutletChange} options={OUTLETS} dark />
+            </div>
           </div>
           <nav className="flex-1 px-4 space-y-2">
             <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
@@ -158,9 +195,12 @@ export default function App() {
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center z-10 no-print">
-            <span className="font-bold text-green-400">LA PINO'Z DSR</span>
-            <span className="text-sm text-gray-400">User: {user?.uid?.substring(0, 4)}...</span>
+          <header className="md:hidden bg-slate-900 text-white p-4 flex flex-col gap-3 z-10 no-print">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-green-400">LA PINO'Z DSR</span>
+              <span className="text-sm text-gray-400">User: {user?.uid?.substring(0, 4)}...</span>
+            </div>
+            <OutletSelector outlet={outlet} onChange={handleOutletChange} options={OUTLETS} dark />
           </header>
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 print-wide">
