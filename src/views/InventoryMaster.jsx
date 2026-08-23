@@ -18,11 +18,23 @@ export default function InventoryMaster({ user, outlet, masterItems, loading }) 
   const [isSeeding, setIsSeeding] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
 
-  const filteredItems = masterItems.filter(item => {
-    const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
-    const matchesSearch = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Firestore doesn't guarantee snapshot order, so the "All" tab would
+  // otherwise list items in a different, shifting order every reload.
+  // Sort by category (in the same order as the master sheet: A, B, C…)
+  // and then by each item's `order` field — which was already being
+  // written on every seed/add but never actually used for anything.
+  const categoryRank = Object.fromEntries(INVENTORY_CATEGORIES.map((c, i) => [c.name, i]));
+  const filteredItems = masterItems
+    .filter(item => {
+      const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+      const matchesSearch = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    })
+    .sort((a, b) => {
+      const catDiff = (categoryRank[a.category] ?? 999) - (categoryRank[b.category] ?? 999);
+      if (catDiff !== 0) return catDiff;
+      return (a.order ?? 0) - (b.order ?? 0);
+    });
 
   const handleSeedDefaults = async () => {
     if (!user) return;
@@ -31,8 +43,14 @@ export default function InventoryMaster({ user, outlet, masterItems, loading }) 
       const batch = writeBatch(db);
       DEFAULT_INVENTORY_ITEMS.forEach((item, idx) => {
         const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${item.id}`);
+        // Drop the seed data's own `id` field rather than writing it into
+        // the document — the Firestore document ID is already the single
+        // source of truth for identity (see useInventory.js), and storing
+        // a second, different-looking ID field is exactly what caused
+        // edit/delete to silently target the wrong document before.
+        const { id: _seedId, ...itemData } = item;
         batch.set(docRef, {
-          ...item,
+          ...itemData,
           outlet,
           order: idx + 1,
           updatedAt: serverTimestamp()
@@ -83,7 +101,6 @@ export default function InventoryMaster({ user, outlet, masterItems, loading }) 
       const itemId = `item_${Date.now()}`;
       const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${itemId}`);
       await setDoc(docRef, {
-        id: itemId,
         name: newForm.name.trim(),
         category: newForm.category,
         uom: newForm.uom,

@@ -128,11 +128,20 @@ export default function DailyStockClosing({
 
     const totalConsumptionPct = netSales > 0 ? (totalUsedValue / netSales) * 100 : 0;
 
+    // Items where closing > opening + purchase (used qty comes out
+    // negative) usually mean a mistyped quantity somewhere. It's not
+    // blocked outright — legitimate stock corrections can look like this
+    // — but it's surfaced so it doesn't go unnoticed.
+    const negativeUsageItems = Object.values(categoryBreakdown)
+      .flatMap(cat => cat.items)
+      .filter(item => item.usedQty < 0);
+
     return {
       totalUsedValue,
       totalPurchaseValue,
       totalConsumptionPct,
-      categoryBreakdown
+      categoryBreakdown,
+      negativeUsageItems
     };
   }, [masterItems, stockData, netSales]);
 
@@ -142,6 +151,23 @@ export default function DailyStockClosing({
 
     if (date < monthStart || date > today) {
       setValidationError("Closing records can only be submitted for dates within the current month.");
+      return;
+    }
+
+    // The number inputs have min="0", but that's a soft UI hint a browser
+    // can still be made to bypass (typing "-" then a digit works in some
+    // browsers, and nothing stops a pasted negative value). Matching the
+    // DSR entry form's precedent: block the save with a real check rather
+    // than relying on the input attribute alone.
+    const hasNegativeInput = masterItems.some(item => {
+      const entry = stockData[item.id];
+      if (!entry) return false;
+      return (parseFloat(entry.opening) || 0) < 0
+        || (parseFloat(entry.purchase) || 0) < 0
+        || (parseFloat(entry.closing) || 0) < 0;
+    });
+    if (hasNegativeInput) {
+      setValidationError("Opening, Purchase, and Closing quantities cannot be negative.");
       return;
     }
 
@@ -175,8 +201,9 @@ export default function DailyStockClosing({
       const recordId = `inv_${outlet}_${date}`;
       const recordRef = doc(db, INVENTORY_DAILY_COLLECTION, recordId);
 
+      // No separate `id` field here — the document ID (recordId) is
+      // already the single source of truth (see useInventory.js).
       await setDoc(recordRef, {
-        id: recordId,
         date,
         outlet,
         netSales,
@@ -280,6 +307,17 @@ export default function DailyStockClosing({
             <Info size={16} />
             <span>
               Opening stock has been automatically populated from the closing stock of <strong>{previousRecord.date}</strong>.
+            </span>
+          </div>
+        )}
+
+        {computedSummary.negativeUsageItems.length > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs mb-6">
+            <AlertCircle size={16} />
+            <span>
+              {computedSummary.negativeUsageItems.length} item{computedSummary.negativeUsageItems.length > 1 ? 's' : ''} show negative usage
+              (closing stock is higher than opening + purchase) — double-check the quantities for{' '}
+              <strong>{computedSummary.negativeUsageItems.map(i => i.name).join(', ')}</strong>.
             </span>
           </div>
         )}

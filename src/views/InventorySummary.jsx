@@ -91,10 +91,10 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
   const exportToCSV = () => {
     const rows = [
       [`"LA PINO'Z INVENTORY SUMMARY - ${outlet}"`],
-      [`"Month", "${selectedMonth}"`],
-      [`"Net Sales", ${totalNetSales}`],
-      [`"Total Consumption Value", ${monthlyAggregation.grandTotalUsedValue}`],
-      [`"Total Food Cost %", "${monthlyAggregation.grandFoodCostPct.toFixed(2)}%"`],
+      ["Month", selectedMonth],
+      ["Net Sales", totalNetSales.toFixed(2)],
+      ["Total Consumption Value", monthlyAggregation.grandTotalUsedValue.toFixed(2)],
+      ["Total Food Cost %", `"${monthlyAggregation.grandFoodCostPct.toFixed(2)}%"`],
       [],
       ["Category", "Item Name", "UOM", "Net Price", "Monthly Purchase Qty", "Purchase Value", "Monthly Used Qty", "Used Value", "Consumption %"]
     ];
@@ -103,7 +103,7 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
       const catData = monthlyAggregation.categoryTotals[cat.name];
       if (!catData) return;
 
-      rows.push([`"${cat.code} - ${cat.name}"`, "", "", "", "", catData.totalPurchaseValue, "", catData.totalUsedValue, `"${totalNetSales > 0 ? ((catData.totalUsedValue / totalNetSales) * 100).toFixed(2) : 0}%"`]);
+      rows.push([`"${cat.code} - ${cat.name}"`, "", "", "", "", catData.totalPurchaseValue.toFixed(2), "", catData.totalUsedValue.toFixed(2), `"${totalNetSales > 0 ? ((catData.totalUsedValue / totalNetSales) * 100).toFixed(2) : 0}%"`]);
 
       catData.items.forEach(item => {
         rows.push([

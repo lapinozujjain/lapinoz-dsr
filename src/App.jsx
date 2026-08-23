@@ -250,9 +250,15 @@ export default function App() {
           </main>
 
           <div className="fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 shadow-xl md:hidden z-20 no-print">
-            <div className="flex justify-around items-center h-16">
+            {/* 7 destinations no longer fit in a fixed-width bar without
+                squeezing or dropping one — this was previously dropping
+                "DSR History & Reports" entirely, leaving no way to reach
+                it on mobile. Scrolling horizontally keeps every
+                destination reachable instead of picking which one to cut. */}
+            <div className="flex items-center h-16 overflow-x-auto no-scrollbar px-1">
               <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dash" />
               <MobileNavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={18} />} label="DSR" />
+              <MobileNavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="History" />
               <MobileNavButton active={view === 'daily_stock'} onClick={() => setView('daily_stock')} icon={<Calendar size={18} />} label="Stock" />
               <MobileNavButton active={view === 'inventory_summary'} onClick={() => setView('inventory_summary')} icon={<FileText size={18} />} label="Summary" />
               <MobileNavButton active={view === 'inventory_master'} onClick={() => setView('inventory_master')} icon={<Package size={18} />} label="Master" />

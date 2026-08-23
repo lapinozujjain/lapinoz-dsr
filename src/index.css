@@ -16,3 +16,14 @@ select {
 button:disabled {
   cursor: not-allowed;
 }
+
+/* Used on the mobile bottom nav, which now scrolls horizontally to fit
+   the DSR + inventory tabs — hides the scrollbar so it still looks like
+   a normal tab bar rather than a visibly scrollable list. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
