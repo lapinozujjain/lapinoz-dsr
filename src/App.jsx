@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  LayoutDashboard, PlusCircle, History, X
+  LayoutDashboard, PlusCircle, History, Package, Calendar, FileText, X
 } from 'lucide-react';
 import { Analytics } from "@vercel/analytics/react";
 import {
@@ -10,18 +10,20 @@ import {
 import { auth } from './firebase';
 import { OUTLETS, DEFAULT_LEGACY_OUTLET, OUTLET_STORAGE_KEY } from './constants';
 import { useEntries } from './hooks/useEntries';
+import { useInventoryMaster, useInventoryDailyRecords } from './hooks/useInventory';
 import { NavButton, MobileNavButton, OutletSelector } from './components/common';
 import Dashboard from './views/Dashboard';
 import NewEntryForm from './views/NewEntryForm';
 import HistoryView from './views/HistoryView';
+import InventoryMaster from './views/InventoryMaster';
+import DailyStockClosing from './views/DailyStockClosing';
+import InventorySummary from './views/InventorySummary';
 
 const getStoredOutlet = () => {
   try {
     const stored = localStorage.getItem(OUTLET_STORAGE_KEY);
     return OUTLETS.includes(stored) ? stored : OUTLETS[0];
   } catch {
-    // localStorage can throw in some browser privacy modes — fall back
-    // to the default rather than crashing the app.
     return OUTLETS[0];
   }
 };
@@ -36,14 +38,10 @@ export default function App() {
   const [view, setView] = useState('dashboard');
   const [outlet, setOutlet] = useState(getStoredOutlet);
 
-  const { entries, loading } = useEntries(user);
+  const { entries, loading: dsrLoading } = useEntries(user);
+  const { items: masterItems, loading: masterLoading } = useInventoryMaster(user, outlet);
+  const { records: inventoryRecords, loading: invLoading } = useInventoryDailyRecords(user, outlet);
 
-  // Entries are fetched once (all outlets, last 1 year — see useEntries)
-  // and filtered to the selected outlet here, rather than adding a
-  // second Firestore query filter. This avoids requiring a composite
-  // index and keeps switching outlets instant (no refetch).
-  // Entries saved before outlet tagging existed have no `outlet` field —
-  // those fall back to DEFAULT_LEGACY_OUTLET.
   const outletEntries = useMemo(
     () => entries.filter(e => (e.outlet || DEFAULT_LEGACY_OUTLET) === outlet),
     [entries, outlet]
@@ -54,8 +52,7 @@ export default function App() {
     try {
       localStorage.setItem(OUTLET_STORAGE_KEY, value);
     } catch {
-      // Ignore write failures (e.g. private browsing) — selection just
-      // won't persist across reloads.
+      // Ignore
     }
   };
 
@@ -96,13 +93,46 @@ export default function App() {
   }, []);
 
   const renderView = () => {
-    if (loading) return <div className="flex h-screen items-center justify-center text-gray-500">Loading your data...</div>;
+    if (dsrLoading) return <div className="flex h-screen items-center justify-center text-gray-500">Loading your data...</div>;
 
     switch (view) {
-      case 'dashboard': return <Dashboard entries={outletEntries} outlet={outlet} />;
-      case 'new': return <NewEntryForm user={user} outlet={outlet} onSuccess={() => setView('history')} existingEntries={outletEntries} />;
-      case 'history': return <HistoryView entries={outletEntries} user={user} outlet={outlet} />;
-      default: return <Dashboard entries={outletEntries} outlet={outlet} />;
+      case 'dashboard':
+        return <Dashboard entries={outletEntries} outlet={outlet} />;
+      case 'new':
+        return <NewEntryForm user={user} outlet={outlet} onSuccess={() => setView('history')} existingEntries={outletEntries} />;
+      case 'history':
+        return <HistoryView entries={outletEntries} user={user} outlet={outlet} />;
+      case 'daily_stock':
+        return (
+          <DailyStockClosing
+            user={user}
+            outlet={outlet}
+            masterItems={masterItems}
+            dsrEntries={outletEntries}
+            inventoryRecords={inventoryRecords}
+            onSuccess={() => setView('inventory_summary')}
+          />
+        );
+      case 'inventory_summary':
+        return (
+          <InventorySummary
+            outlet={outlet}
+            masterItems={masterItems}
+            dsrEntries={outletEntries}
+            inventoryRecords={inventoryRecords}
+          />
+        );
+      case 'inventory_master':
+        return (
+          <InventoryMaster
+            user={user}
+            outlet={outlet}
+            masterItems={masterItems}
+            loading={masterLoading}
+          />
+        );
+      default:
+        return <Dashboard entries={outletEntries} outlet={outlet} />;
     }
   };
 
@@ -122,7 +152,7 @@ export default function App() {
             <img src="https://cdn.uengage.io/brand_logo/lapinoz.png" alt="Company Logo" className="h-20 w-auto" />
           </div>
           <h2 className="text-2xl font-bold text-center text-green-600 mb-6">
-            {isSigningUp ? 'Register' : 'Login'} to LA PINO'Z DSR
+            {isSigningUp ? 'Register' : 'Login'} to LA PINO'Z DSR & Inventory
           </h2>
           {authError && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm" role="alert">
@@ -174,21 +204,33 @@ export default function App() {
             <div className="flex items-center space-x-2">
               <img src="https://cdn.uengage.io/brand_logo/logo-5-1759903116.png" alt="Company Logo" className="h-20 w-auto" />
             </div>
-            <p className="text-l font-bold tracking-wider text-green-400">DSR Manager Ujjain</p>
+            <p className="text-l font-bold tracking-wider text-green-400">DSR & Inventory</p>
             <div className="mt-3">
               <OutletSelector outlet={outlet} onChange={handleOutletChange} options={OUTLETS} dark />
             </div>
           </div>
-          <nav className="flex-1 px-4 space-y-2">
-            <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
-            <NavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={20} />} label="New Daily Entry" />
-            <NavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={20} />} label="Reports & History" />
+
+          <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto">
+            <div className="px-3 pb-1 text-2xs font-semibold text-gray-400 uppercase tracking-wider">
+              Sales Records (DSR)
+            </div>
+            <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
+            <NavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={18} />} label="New Daily DSR" />
+            <NavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="DSR History & Reports" />
+
+            <div className="pt-4 px-3 pb-1 text-2xs font-semibold text-gray-400 uppercase tracking-wider">
+              Inventory & Food Cost
+            </div>
+            <NavButton active={view === 'daily_stock'} onClick={() => setView('daily_stock')} icon={<Calendar size={18} />} label="Daily Stock Closing" />
+            <NavButton active={view === 'inventory_summary'} onClick={() => setView('inventory_summary')} icon={<FileText size={18} />} label="Monthly Summary" />
+            <NavButton active={view === 'inventory_master'} onClick={() => setView('inventory_master')} icon={<Package size={18} />} label="Item Master" />
           </nav>
+
           <div className="p-4 text-xs text-gray-500 border-t border-gray-800">
             User ID: {user?.uid?.substring(0, 8)}...
           </div>
           <div className="p-4 no-print">
-            <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors shadow-md">
+            <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors shadow-md text-sm">
               Logout ({user?.email})
             </button>
           </div>
@@ -197,22 +239,24 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="md:hidden bg-slate-900 text-white p-4 flex flex-col gap-3 z-10 no-print">
             <div className="flex justify-between items-center">
-              <span className="font-bold text-green-400">LA PINO'Z DSR</span>
+              <span className="font-bold text-green-400">LA PINO'Z DSR & INV</span>
               <span className="text-sm text-gray-400">User: {user?.uid?.substring(0, 4)}...</span>
             </div>
             <OutletSelector outlet={outlet} onChange={handleOutletChange} options={OUTLETS} dark />
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 print-wide">
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 print-wide">
             {renderView()}
           </main>
 
           <div className="fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 shadow-xl md:hidden z-20 no-print">
             <div className="flex justify-around items-center h-16">
-              <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={20} />} label="Dash" />
-              <MobileNavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={20} />} label="New" />
-              <MobileNavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={20} />} label="History" />
-              <MobileNavButton onClick={handleLogout} icon={<X size={20} />} label="Logout" isLogout={true} />
+              <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dash" />
+              <MobileNavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={18} />} label="DSR" />
+              <MobileNavButton active={view === 'daily_stock'} onClick={() => setView('daily_stock')} icon={<Calendar size={18} />} label="Stock" />
+              <MobileNavButton active={view === 'inventory_summary'} onClick={() => setView('inventory_summary')} icon={<FileText size={18} />} label="Summary" />
+              <MobileNavButton active={view === 'inventory_master'} onClick={() => setView('inventory_master')} icon={<Package size={18} />} label="Master" />
+              <MobileNavButton onClick={handleLogout} icon={<X size={18} />} label="Logout" isLogout={true} />
             </div>
           </div>
         </div>
