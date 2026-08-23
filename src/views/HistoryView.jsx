@@ -97,7 +97,7 @@ export default function HistoryView({ entries, user, outlet }) {
       <div className="flex flex-col md:flex-row justify-between items-center no-print gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            Reports & History
+            DSR Reports
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
               {outlet}
             </span>

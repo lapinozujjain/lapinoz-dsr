@@ -216,7 +216,7 @@ export default function App() {
             </div>
             <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
             <NavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={18} />} label="New Daily DSR" />
-            <NavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="DSR History & Reports" />
+            <NavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="DSR Reports" />
 
             <div className="pt-4 px-3 pb-1 text-2xs font-semibold text-gray-400 uppercase tracking-wider">
               Inventory & Food Cost
@@ -258,7 +258,7 @@ export default function App() {
             <div className="flex items-center h-16 overflow-x-auto no-scrollbar px-1">
               <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dash" />
               <MobileNavButton active={view === 'new'} onClick={() => setView('new')} icon={<PlusCircle size={18} />} label="DSR" />
-              <MobileNavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="History" />
+              <MobileNavButton active={view === 'history'} onClick={() => setView('history')} icon={<History size={18} />} label="Reports" />
               <MobileNavButton active={view === 'daily_stock'} onClick={() => setView('daily_stock')} icon={<Calendar size={18} />} label="Stock" />
               <MobileNavButton active={view === 'inventory_summary'} onClick={() => setView('inventory_summary')} icon={<FileText size={18} />} label="Summary" />
               <MobileNavButton active={view === 'inventory_master'} onClick={() => setView('inventory_master')} icon={<Package size={18} />} label="Master" />
