@@ -213,7 +213,7 @@ export default function DailyStockClosing({
         totalConsumptionPct: computedSummary.totalConsumptionPct,
         submittedBy: user.uid,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
 
       if (onSuccess) onSuccess();
       alert(`Inventory record for ${date} saved successfully!`);
