@@ -1,5 +1,5 @@
 import { initializeApp, getApps, deleteApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, inMemoryPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -29,13 +29,29 @@ export const APP_CONFIG_COLLECTION = 'app_config';
 // Cloud Functions/Admin SDK involved. Spinning up a second, disposable
 // Firebase app instance for account-creation calls only means the
 // primary `auth` above (the Owner's real session) is never touched.
+//
+// Critically, this secondary instance points at the SAME Firebase
+// project/API key as the primary one, so by default both can end up
+// sharing the browser's persisted auth storage (localStorage/IndexedDB)
+// — meaning a sign-in on the secondary instance can still bleed into,
+// or knock out, the primary instance's session. Forcing the secondary
+// instance to in-memory-only persistence keeps it fully isolated: it
+// never touches shared browser storage, so it can't affect the Owner's
+// real session no matter what it does. Skipping this was the actual
+// cause of "Missing or insufficient permissions" on the Firestore write
+// right after account creation — the Auth account got created fine, but
+// by the time the code wrote to Firestore, the browser was no longer
+// reliably authenticated as the Owner.
+//
 // Call disposeSecondaryAuth() once the create/reset-email call is done.
 const SECONDARY_APP_NAME = 'secondary-account-creation';
 
-export function getSecondaryAuth() {
+export async function getSecondaryAuth() {
   const existing = getApps().find(a => a.name === SECONDARY_APP_NAME);
   const secondaryApp = existing || initializeApp(firebaseConfig, SECONDARY_APP_NAME);
-  return getAuth(secondaryApp);
+  const secondaryAuth = getAuth(secondaryApp);
+  await setPersistence(secondaryAuth, inMemoryPersistence);
+  return secondaryAuth;
 }
 
 export async function disposeSecondaryAuth() {

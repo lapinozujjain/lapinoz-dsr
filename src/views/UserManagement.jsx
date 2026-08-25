@@ -31,7 +31,7 @@ export default function UserManagement({ user, allUsers }) {
     setIsCreating(true);
     setCreateError('');
     try {
-      const secondaryAuth = getSecondaryAuth();
+      const secondaryAuth = await getSecondaryAuth();
       const cred = await createUserWithEmailAndPassword(secondaryAuth, newEmail.trim(), randomThrowawayPassword());
       const newUid = cred.user.uid;
       await sendPasswordResetEmail(secondaryAuth, newEmail.trim());
