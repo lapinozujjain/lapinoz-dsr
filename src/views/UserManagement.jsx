@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { Users, UserPlus, KeyRound, AlertCircle, ShieldCheck, Trash2, Copy, Check, Save } from 'lucide-react';
-import { auth, db, USERS_COLLECTION, getSecondaryAuth, disposeSecondaryAuth } from '../firebase';
+import { db, USERS_COLLECTION, getSecondaryAuth, disposeSecondaryAuth } from '../firebase';
 import { ROLES, ROLE_LABELS } from '../constants';
 import { ConfirmDialog } from '../components/common';
 
@@ -51,7 +51,7 @@ export default function UserManagement({ user, allUsers }) {
       const newUid = cred.user.uid;
 
       try {
-        await sendPasswordResetEmail(auth, newEmail.trim());
+        await sendPasswordResetEmail(secondaryAuth, newEmail.trim());
       } catch (resetErr) {
         console.warn('Password reset email warning:', resetErr);
       }

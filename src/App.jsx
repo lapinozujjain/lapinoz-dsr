@@ -46,7 +46,7 @@ export default function App() {
   const { role, active, exists: hasRoleDoc, loading: roleLoading } = useCurrentUserRole(user);
 
   const shouldFetchAllUsers = Boolean(user && (role === 'owner' || !hasRoleDoc));
-  const { users: allUsers } = useAllUsers(user, shouldFetchAllUsers);
+  const { users: allUsers, loading: allUsersLoading } = useAllUsers(user, shouldFetchAllUsers);
 
   const dataAccessEnabled = Boolean(user && !roleLoading && hasRoleDoc && active);
 
@@ -320,6 +320,26 @@ export default function App() {
   }
 
   if (!hasRoleDoc) {
+    // Whether "Initialize as Owner" can succeed depends entirely on
+    // Firestore's app_config/meta lock (see firestore.rules) — it only
+    // works while zero team accounts exist anywhere. Showing that button
+    // unconditionally to every roleless account (e.g. a Manager/Staff
+    // account the Owner hasn't finished setting up yet, or a stray typo
+    // in a pasted UID) meant it would just fail with a confusing
+    // permission error for anyone who isn't genuinely the first user.
+    if (allUsersLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-3" />
+            <p className="text-sm font-medium text-gray-600">Checking team accounts...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const canBootstrap = allUsers.length === 0;
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <div className="p-8 bg-white shadow-xl rounded-xl w-full max-w-md text-center border border-gray-100">
@@ -327,6 +347,7 @@ export default function App() {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Setup Required</h2>
           <p className="text-sm text-gray-600 mb-4">
             Signed in as <strong>{user.email}</strong>. This account does not have a role profile assigned yet.
+            {!canBootstrap && ' Share your User ID below with your Owner so they can add you.'}
           </p>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-left mb-6">
@@ -344,13 +365,15 @@ export default function App() {
           </div>
 
           <div className="space-y-3">
-            <button
-              onClick={() => setConfirmClaimOwner(true)}
-              disabled={isClaiming}
-              className="w-full bg-green-600 text-white p-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
-            >
-              {isClaiming ? 'Initializing Owner...' : 'Initialize as Owner Account'}
-            </button>
+            {canBootstrap && (
+              <button
+                onClick={() => setConfirmClaimOwner(true)}
+                disabled={isClaiming}
+                className="w-full bg-green-600 text-white p-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
+              >
+                {isClaiming ? 'Initializing Owner...' : 'Initialize as Owner Account'}
+              </button>
+            )}
 
             <button
               onClick={handleLogout}

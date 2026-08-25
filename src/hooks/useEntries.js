@@ -1,63 +1,57 @@
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { db, ENTRIES_COLLECTION } from '../firebase';
+import { getOneYearAgo } from '../utils/date';
 
-export function useEntries(selectedOutlet, dateRange) {
+// Live-subscribes to DSR entries from the last 1 year, newest first.
+// Bounding the query keeps the realtime listener (and the amount of data
+// synced to every open tab) from growing without limit as the restaurant
+// accumulates years of history. Reports further back than a year aren't
+// reachable from the UI right now — if that's ever needed, this query
+// (and the date-range picker's min date) is the place to change it.
+//
+// Outlet filtering happens client-side in App.jsx (see outletEntries),
+// not here — this hook always returns every outlet's entries within the
+// date window, which is what lets switching outlets be instant with no
+// refetch.
+//
+// `enabled` should be false until the signed-in user's role has been
+// confirmed active — otherwise this subscribes immediately on sign-in,
+// before App.jsx even knows whether the account is approved, and a
+// deactivated/not-yet-approved account hits a Firestore permission
+// error in the console for a screen it was never going to see anyway.
+export function useEntries(user, enabled = true) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!user || !enabled) {
+      setEntries([]);
+      setLoading(!!user && !enabled);
+      return;
+    }
+
     setLoading(true);
-    try {
-      let q = collection(db, 'daily_entries');
-      
-      // Apply outlet filter if a specific outlet is selected
-      if (selectedOutlet && selectedOutlet !== 'ALL') {
-        q = query(q, where('outlet', '==', selectedOutlet));
-      }
+    setError(null);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          let data = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
+    const q = query(
+      collection(db, ENTRIES_COLLECTION),
+      where('date', '>=', getOneYearAgo()),
+      orderBy('date', 'desc')
+    );
 
-          // Strict client-side filter fallback in case of mixed documents
-          if (selectedOutlet && selectedOutlet !== 'ALL') {
-            data = data.filter((item) => item.outlet === selectedOutlet || item.outletId === selectedOutlet);
-          }
-
-          // Filter by date range if provided
-          if (dateRange?.startDate && dateRange?.endDate) {
-            data = data.filter((item) => {
-              const entryDate = item.date;
-              return entryDate >= dateRange.startDate && entryDate <= dateRange.endDate;
-            });
-          }
-
-          // Sort by date descending
-          data.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-          setEntries(data);
-          setLoading(false);
-        },
-        (err) => {
-          console.error("Error fetching entries:", err);
-          setError(err);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err) {
-      console.error(err);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEntries(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching DSR entries:', err);
       setError(err);
       setLoading(false);
-    }
-  }, [selectedOutlet, dateRange?.startDate, dateRange?.endDate]);
+    });
+
+    return () => unsubscribe();
+  }, [user, enabled]);
 
   return { entries, loading, error };
 }

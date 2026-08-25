@@ -16,13 +16,18 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
     }));
   };
 
-const monthRecords = useMemo(() => {
-    return inventoryRecords.filter(r => (r.outlet || '').toUpperCase() === outlet.toUpperCase() && r.date.startsWith(selectedMonth));
-  }, [inventoryRecords, selectedMonth, outlet]);
+  // dsrEntries and inventoryRecords are already scoped to the current
+  // outlet upstream — no outlet re-check needed here. (A previous
+  // version of this file referenced DEFAULT_LEGACY_OUTLET here without
+  // importing it, which threw a ReferenceError on every render and
+  // crashed this entire page — this is also the fix for that.)
+  const monthRecords = useMemo(() => {
+    return inventoryRecords.filter(r => r.date.startsWith(selectedMonth));
+  }, [inventoryRecords, selectedMonth]);
 
   const monthDsrEntries = useMemo(() => {
-    return dsrEntries.filter(e => ((e.outlet || DEFAULT_LEGACY_OUTLET).toUpperCase() === outlet.toUpperCase()) && e.date.startsWith(selectedMonth));
-  }, [dsrEntries, selectedMonth, outlet]);
+    return dsrEntries.filter(e => e.date.startsWith(selectedMonth));
+  }, [dsrEntries, selectedMonth]);
 
   const totalNetSales = useMemo(() => {
     return monthDsrEntries.reduce((acc, e) => acc + (parseFloat(e.totalSale) || 0), 0);

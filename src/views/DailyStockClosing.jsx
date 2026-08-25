@@ -21,25 +21,29 @@ export default function DailyStockClosing({
   const [confirmState, setConfirmState] = useState(null);
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
-  // 1. Find matching DSR entry for chosen date to pull Net Sales for this outlet
+  // dsrEntries and inventoryRecords are already scoped to the current
+  // outlet by the time they reach this component (App.jsx filters DSR
+  // entries client-side, and useInventoryDailyRecords does the same for
+  // inventory) — no need to re-check outlet again here.
   const matchedDsr = useMemo(() => {
-    return dsrEntries.find(e => e.date === date && ((e.outlet || 'NANAKHEDA').toUpperCase() === outlet.toUpperCase()));
-  }, [dsrEntries, date, outlet]);
+    return dsrEntries.find(e => e.date === date);
+  }, [dsrEntries, date]);
 
   const netSales = parseFloat(matchedDsr?.totalSale) || 0;
 
-  // 2. Find previous day's inventory record for automated opening stock chain for this outlet
+  // Previous day's inventory record — its closing stock becomes today's
+  // opening stock.
   const previousRecord = useMemo(() => {
     const sorted = [...inventoryRecords]
-      .filter(r => r.date < date && (r.outlet || '').toUpperCase() === outlet.toUpperCase())
+      .filter(r => r.date < date)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
     return sorted[0] || null;
-  }, [inventoryRecords, date, outlet]);
+  }, [inventoryRecords, date]);
 
-  // 3. Existing record for this date
+  // Existing record for this exact date, if one was already submitted.
   const currentRecord = useMemo(() => {
-    return inventoryRecords.find(r => r.date === date && (r.outlet || '').toUpperCase() === outlet.toUpperCase()) || null;
-  }, [inventoryRecords, date, outlet]);
+    return inventoryRecords.find(r => r.date === date) || null;
+  }, [inventoryRecords, date]);
 
   useEffect(() => {
     if (!masterItems || masterItems.length === 0) return;
