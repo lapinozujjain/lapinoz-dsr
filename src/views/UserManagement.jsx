@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
-import { Users, UserPlus, KeyRound, AlertCircle, ShieldCheck, Trash2, Copy, Check } from 'lucide-react';
+import { Users, UserPlus, KeyRound, AlertCircle, ShieldCheck, Trash2, Copy, Check, Save } from 'lucide-react';
 import { auth, db, USERS_COLLECTION, getSecondaryAuth, disposeSecondaryAuth } from '../firebase';
 import { ROLES, ROLE_LABELS } from '../constants';
 import { ConfirmDialog } from '../components/common';
@@ -21,8 +21,16 @@ export default function UserManagement({ user, allUsers }) {
   const [isGranting, setIsGranting] = useState(false);
   const [grantError, setGrantError] = useState('');
 
+  // Staged role selections before clicking Confirm: { [userId]: 'manager' | 'staff' }
+  const [selectedRoles, setSelectedRoles] = useState({});
+  const [updatingUid, setUpdatingUid] = useState(null);
+
   const [copiedUid, setCopiedUid] = useState(null);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState(null);
+  const [confirmRoleChange, setConfirmRoleChange] = useState(null);
+
+  // 1. Hide all Owner accounts from the manageable list
+  const nonOwnerUsers = (allUsers || []).filter(u => u.role !== 'owner');
 
   const handleCopy = (text, id) => {
     navigator.clipboard?.writeText(text);
@@ -102,12 +110,31 @@ export default function UserManagement({ user, allUsers }) {
     }
   };
 
-  const handleRoleChange = async (uid, role) => {
+  const handleRoleSelect = (uid, role) => {
+    setSelectedRoles(prev => ({
+      ...prev,
+      [uid]: role
+    }));
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!confirmRoleChange) return;
+    const { uid, newRole, email: userEmail } = confirmRoleChange;
+    setUpdatingUid(uid);
+    setConfirmRoleChange(null);
     try {
-      await setDoc(doc(db, USERS_COLLECTION, uid), { role, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, USERS_COLLECTION, uid), { role: newRole, updatedAt: serverTimestamp() }, { merge: true });
+      setSelectedRoles(prev => {
+        const next = { ...prev };
+        delete next[uid];
+        return next;
+      });
+      alert(`Role for ${userEmail} updated to ${ROLE_LABELS[newRole] || newRole}.`);
     } catch (err) {
       console.error('Error updating role:', err);
       alert('Failed to update role.');
+    } finally {
+      setUpdatingUid(null);
     }
   };
 
@@ -137,20 +164,23 @@ export default function UserManagement({ user, allUsers }) {
         <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Users className="text-green-600" /> Team Accounts
         </h2>
-        <p className="text-sm text-gray-500 mb-6">Manage Owner, Store Manager, and Staff access across both outlets.</p>
+        <p className="text-sm text-gray-500 mb-6">Manage Store Manager and Staff access across both outlets.</p>
 
         <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden mb-8 bg-white">
-          {allUsers.length === 0 ? (
-            <p className="p-4 text-sm text-gray-400">No team accounts found.</p>
+          {nonOwnerUsers.length === 0 ? (
+            <p className="p-4 text-sm text-gray-400">No team accounts found. Use the forms below to add managers or staff.</p>
           ) : (
-            allUsers.map(u => {
-              const isSelf = u.id === user.uid;
+            nonOwnerUsers.map(u => {
+              const currentRole = u.role || 'staff';
+              const stagedRole = selectedRoles[u.id] || currentRole;
+              const hasRoleChanged = stagedRole !== currentRole;
+              const isUpdating = updatingUid === u.id;
+
               return (
                 <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-gray-50/60 transition-colors">
                   <div>
                     <p className="font-medium text-gray-800 flex items-center gap-2">
                       {u.email}
-                      {isSelf && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">(you)</span>}
                       {u.active === false && (
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600">Deactivated</span>
                       )}
@@ -167,19 +197,39 @@ export default function UserManagement({ user, allUsers }) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <select
-                      value={u.role || 'staff'}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      disabled={isSelf}
-                      className="text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                      value={stagedRole}
+                      onChange={(e) => handleRoleSelect(u.id, e.target.value)}
+                      disabled={isUpdating}
+                      className={`text-sm border rounded-md px-2.5 py-1.5 bg-white outline-none transition-colors ${
+                        hasRoleChanged ? 'border-amber-400 ring-1 ring-amber-300' : 'border-gray-300'
+                      }`}
                     >
-                      {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                      {ROLES.filter(r => r !== 'owner').map(r => (
+                        <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                      ))}
                     </select>
+
+                    {hasRoleChanged && (
+                      <button
+                        onClick={() => setConfirmRoleChange({
+                          uid: u.id,
+                          email: u.email,
+                          newRole: stagedRole
+                        })}
+                        disabled={isUpdating}
+                        className="flex items-center gap-1 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-green-700 transition shadow-xs"
+                        title="Save changed role"
+                      >
+                        <Save size={13} />
+                        <span>{isUpdating ? 'Saving...' : 'Save Role'}</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => handleToggleActive(u.id, u.active === false)}
-                      disabled={isSelf}
+                      disabled={isUpdating}
                       className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors disabled:opacity-40 ${
                         u.active === false
                           ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
@@ -189,15 +239,14 @@ export default function UserManagement({ user, allUsers }) {
                       {u.active === false ? 'Reactivate' : 'Deactivate'}
                     </button>
 
-                    {!isSelf && (
-                      <button
-                        onClick={() => setConfirmDeleteUser(u)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
-                        title="Remove User Record"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setConfirmDeleteUser(u)}
+                      disabled={isUpdating}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+                      title="Remove User Record"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
               );
@@ -259,7 +308,7 @@ export default function UserManagement({ user, allUsers }) {
               value={existingRole} onChange={(e) => setExistingRole(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
             >
-              {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              {ROLES.filter(r => r !== 'owner').map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
             </select>
             <button
               type="submit" disabled={isGranting}
@@ -277,6 +326,16 @@ export default function UserManagement({ user, allUsers }) {
           </span>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmRoleChange}
+        title="Confirm Role Change?"
+        message={`Are you sure you want to change the role for ${confirmRoleChange?.email} to ${ROLE_LABELS[confirmRoleChange?.newRole] || confirmRoleChange?.newRole}?`}
+        confirmLabel="Confirm Change"
+        danger={false}
+        onConfirm={handleConfirmRoleChange}
+        onCancel={() => setConfirmRoleChange(null)}
+      />
 
       <ConfirmDialog
         open={!!confirmDeleteUser}

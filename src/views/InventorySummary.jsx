@@ -16,13 +16,13 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
     }));
   };
 
-  const monthRecords = useMemo(() => {
-    return inventoryRecords.filter(r => r.date.startsWith(selectedMonth));
-  }, [inventoryRecords, selectedMonth]);
+const monthRecords = useMemo(() => {
+    return inventoryRecords.filter(r => (r.outlet || '').toUpperCase() === outlet.toUpperCase() && r.date.startsWith(selectedMonth));
+  }, [inventoryRecords, selectedMonth, outlet]);
 
   const monthDsrEntries = useMemo(() => {
-    return dsrEntries.filter(e => e.date.startsWith(selectedMonth));
-  }, [dsrEntries, selectedMonth]);
+    return dsrEntries.filter(e => ((e.outlet || DEFAULT_LEGACY_OUTLET).toUpperCase() === outlet.toUpperCase()) && e.date.startsWith(selectedMonth));
+  }, [dsrEntries, selectedMonth, outlet]);
 
   const totalNetSales = useMemo(() => {
     return monthDsrEntries.reduce((acc, e) => acc + (parseFloat(e.totalSale) || 0), 0);

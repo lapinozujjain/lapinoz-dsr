@@ -55,7 +55,7 @@ export default function App() {
   const { records: inventoryRecords } = useInventoryDailyRecords(user, outlet, dataAccessEnabled);
 
   const outletEntries = useMemo(
-    () => entries.filter(e => (e.outlet || DEFAULT_LEGACY_OUTLET) === outlet),
+    () => entries.filter(e => ((e.outlet || DEFAULT_LEGACY_OUTLET).trim().toUpperCase() === outlet.trim().toUpperCase())),
     [entries, outlet]
   );
 

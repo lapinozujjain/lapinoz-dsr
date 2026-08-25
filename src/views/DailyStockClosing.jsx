@@ -21,22 +21,25 @@ export default function DailyStockClosing({
   const [confirmState, setConfirmState] = useState(null);
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
+  // 1. Find matching DSR entry for chosen date to pull Net Sales for this outlet
   const matchedDsr = useMemo(() => {
-    return dsrEntries.find(e => e.date === date);
-  }, [dsrEntries, date]);
+    return dsrEntries.find(e => e.date === date && ((e.outlet || 'NANAKHEDA').toUpperCase() === outlet.toUpperCase()));
+  }, [dsrEntries, date, outlet]);
 
   const netSales = parseFloat(matchedDsr?.totalSale) || 0;
 
+  // 2. Find previous day's inventory record for automated opening stock chain for this outlet
   const previousRecord = useMemo(() => {
     const sorted = [...inventoryRecords]
-      .filter(r => r.date < date)
+      .filter(r => r.date < date && (r.outlet || '').toUpperCase() === outlet.toUpperCase())
       .sort((a, b) => new Date(b.date) - new Date(a.date));
     return sorted[0] || null;
-  }, [inventoryRecords, date]);
+  }, [inventoryRecords, date, outlet]);
 
+  // 3. Existing record for this date
   const currentRecord = useMemo(() => {
-    return inventoryRecords.find(r => r.date === date) || null;
-  }, [inventoryRecords, date]);
+    return inventoryRecords.find(r => r.date === date && (r.outlet || '').toUpperCase() === outlet.toUpperCase()) || null;
+  }, [inventoryRecords, date, outlet]);
 
   useEffect(() => {
     if (!masterItems || masterItems.length === 0) return;
@@ -291,9 +294,8 @@ export default function DailyStockClosing({
             <p className="text-2xs text-gray-400 mt-1">Opening + Purchases - Closing</p>
           </div>
 
-          <div className={`p-4 rounded-lg border shadow-xs ${
-            computedSummary.totalConsumptionPct > 40 ? 'bg-red-50 border-red-200 text-red-900' : 'bg-green-50 border-green-200 text-green-900'
-          }`}>
+          <div className={`p-4 rounded-lg border shadow-xs ${computedSummary.totalConsumptionPct > 40 ? 'bg-red-50 border-red-200 text-red-900' : 'bg-green-50 border-green-200 text-green-900'
+            }`}>
             <p className="text-xs font-semibold uppercase">Total Food Cost %</p>
             <h3 className="text-xl font-bold mt-1">
               {computedSummary.totalConsumptionPct.toFixed(2)}%
@@ -366,9 +368,8 @@ export default function DailyStockClosing({
                       <table className="min-w-full divide-y divide-gray-200 text-xs">
                         <thead className="bg-gray-50 text-gray-600 uppercase font-semibold">
                           <tr>
-                            <th className="p-2.5 text-left w-8">#</th>
-                            <th className="p-2.5 text-left">Item Name</th>
-                            <th className="p-2.5 text-center w-20">UOM</th>
+                            <th className="p-2.5 text-left min-w-[130px] sticky left-0 z-20 bg-gray-50 border-r border-gray-100">Item Name</th>
+                            <th className="p-2.5 text-center w-16 min-w-[60px] sticky left-[130px] z-20 bg-gray-50 border-r-2 border-gray-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]">UOM</th>
                             <th className="p-2.5 text-right w-24">Net Price</th>
                             <th className="p-2.5 text-center w-28 bg-amber-50/50">Opening Qty</th>
                             <th className="p-2.5 text-center w-28 bg-blue-50/50">Purchase Qty</th>
@@ -383,11 +384,11 @@ export default function DailyStockClosing({
                             const entry = stockData[item.id] || { opening: '', purchase: '', closing: '' };
                             return (
                               <tr key={item.id} className="hover:bg-gray-50/80 transition">
-                                <td className="p-2.5 text-gray-400">{idx + 1}</td>
-                                <td className="p-2.5 font-medium text-gray-900">{item.name}</td>
-                                <td className="p-2.5 text-center text-gray-500 font-mono">{item.uom || '/NOS'}</td>
+                                <td className="p-2.5 font-medium text-gray-900 min-w-[130px] sticky left-0 z-10 bg-white border-r border-gray-100">{item.name}</td>
+                                <td className="p-2.5 text-center text-gray-500 font-mono w-16 min-w-[60px] sticky left-[130px] z-10 bg-white border-r-2 border-gray-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]">{item.uom || '/NOS'}</td>
                                 <td className="p-2.5 text-right text-gray-600">{formatCurrency(item.netPrice)}</td>
 
+                                {/* Opening */}
                                 <td className="p-2 bg-amber-50/30">
                                   <input
                                     type="number" step="any" placeholder="0" min="0"
@@ -397,6 +398,7 @@ export default function DailyStockClosing({
                                   />
                                 </td>
 
+                                {/* Purchase */}
                                 <td className="p-2 bg-blue-50/30">
                                   <input
                                     type="number" step="any" placeholder="0" min="0"
@@ -406,6 +408,7 @@ export default function DailyStockClosing({
                                   />
                                 </td>
 
+                                {/* Closing */}
                                 <td className="p-2 bg-green-50/30">
                                   <input
                                     type="number" step="any" placeholder="0" min="0"
@@ -415,14 +418,17 @@ export default function DailyStockClosing({
                                   />
                                 </td>
 
+                                {/* Used Qty */}
                                 <td className={`p-2.5 text-right font-bold ${item.usedQty < 0 ? 'text-red-500' : 'text-gray-800'}`}>
                                   {item.usedQty.toFixed(2)}
                                 </td>
 
+                                {/* Used Value */}
                                 <td className="p-2.5 text-right font-bold text-gray-900">
                                   {formatCurrency(item.usedValue)}
                                 </td>
 
+                                {/* Consumption % */}
                                 <td className="p-2.5 text-right font-mono text-gray-600">
                                   {item.consumptionPct.toFixed(2)}%
                                 </td>
@@ -432,7 +438,7 @@ export default function DailyStockClosing({
                         </tbody>
                         <tfoot className="bg-gray-50 border-t border-gray-200 font-bold">
                           <tr>
-                            <td colSpan={7} className="p-2.5 text-right text-gray-700 uppercase">
+                            <td colSpan={6} className="p-2.5 text-right text-gray-700 uppercase">
                               Category Total:
                             </td>
                             <td colSpan={2} className="p-2.5 text-right text-green-700 font-bold">
