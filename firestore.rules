@@ -1,0 +1,122 @@
+rules_version = '2';
+
+// Apply this in the Firebase Console: Firestore Database → Rules → paste
+// and Publish. It is NOT deployed automatically by `npm run build` or
+// Vercel — Firestore rules live outside the app bundle. If you have the
+// Firebase CLI set up instead, `firebase deploy --only firestore:rules`
+// works too, but this project doesn't currently have a firebase.json
+// wired up for that.
+//
+// Role model: every signed-in account has a document at
+// /users/{uid} with a `role` field ('owner' | 'manager' | 'staff') and
+// an `active` boolean. Roles are read from Firestore (not Firebase Auth
+// custom claims) since this project has no Cloud Functions/Admin SDK —
+// see the code comments in src/firebase.js and src/hooks/useAppUsers.js
+// for the full reasoning.
+//
+// Trust model: this is a small, private, two-outlet team app, not a
+// public multi-tenant product. Reads are broadly open to any signed-in,
+// active account (roles mainly gate WRITES and are enforced in the UI
+// for which screens/buttons appear) — the same pragmatic tradeoff
+// already made for outlet separation (view-level, not a hard security
+// boundary) earlier in this project.
+
+function isSignedIn() {
+  return request.auth != null;
+}
+
+function myRole() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+}
+
+function myIsActive() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active != false;
+}
+
+function isOwner() {
+  return isSignedIn() && myIsActive() && myRole() == 'owner';
+}
+
+function isOwnerOrManager() {
+  return isSignedIn() && myIsActive() && (myRole() == 'owner' || myRole() == 'manager');
+}
+
+function isAnyActiveRole() {
+  return isSignedIn() && myIsActive() && myRole() in ['owner', 'manager', 'staff'];
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Team accounts ---
+    match /users/{userId} {
+      // Read is broad: the app needs to check "does a users doc exist
+      // for me" before a role is assigned yet, and the Owner's Team
+      // Accounts screen lists everyone. Email + role isn't sensitive
+      // within a small trusted team.
+      allow read: if isSignedIn();
+
+      // One-time bootstrap: claim your OWN uid as 'owner', but only
+      // while app_config/meta doesn't exist yet (see below — the
+      // matching write to app_config/meta in the same batch permanently
+      // closes this path after the very first use).
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.role == 'owner'
+        && !exists(/databases/$(database)/documents/app_config/meta);
+
+      // Normal path: only an existing, active Owner can create or edit
+      // team accounts (roles, active/inactive) going forward.
+      allow create, update: if isOwner();
+
+      allow delete: if isOwner() && userId != request.auth.uid;
+    }
+
+    // --- Bootstrap lock ---
+    match /app_config/meta {
+      // Created once, atomically alongside the first owner's /users doc
+      // (see handleClaimOwner in App.jsx). Once it exists, the bootstrap
+      // create-rule above can never match again for anyone.
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && !exists(/databases/$(database)/documents/app_config/meta);
+      allow update, delete: if false;
+    }
+
+    // --- DSR entries ---
+    match /dsr_entries/{entryId} {
+      allow read: if isAnyActiveRole();
+      // Every role can submit a new daily entry — that's the core
+      // day-to-day job for Staff.
+      allow create: if isAnyActiveRole();
+      // Editing/deleting an existing entry (corrections, CSV import
+      // upserts) is Owner/Manager only — Staff's screens never expose
+      // this, and rules back that up rather than relying on hidden UI.
+      allow update, delete: if isOwnerOrManager();
+    }
+
+    // --- Inventory master list ---
+    match /inventory_master/{itemId} {
+      allow read: if isAnyActiveRole();
+      // Adding/editing individual items, and the initial "seed if empty"
+      // action, are reasonable day-to-day Manager tasks.
+      allow create, update: if isOwnerOrManager();
+      // Deleting an item, and the bulk Resync/Wipe-and-reset actions in
+      // Item Master (which write many docs via batch, some as deletes),
+      // are Owner-only — matches the UI, which hides those controls for
+      // anyone else.
+      allow delete: if isOwner();
+    }
+
+    // --- Daily inventory closing records ---
+    match /inventory_daily_records/{recordId} {
+      allow read: if isAnyActiveRole();
+      // First-time submission of a day's closing stock — Staff's other
+      // core job.
+      allow create: if isAnyActiveRole();
+      // Re-opening and editing an already-submitted day is Owner/Manager
+      // only (a correction, not routine data entry).
+      allow update: if isOwnerOrManager();
+      allow delete: if isOwner();
+    }
+  }
+}

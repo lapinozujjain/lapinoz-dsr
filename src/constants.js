@@ -13,6 +13,25 @@ export const OUTLETS = ['FREEGANJ', 'NANAKHEDA'];
 export const DEFAULT_LEGACY_OUTLET = 'NANAKHEDA';
 export const OUTLET_STORAGE_KEY = 'dsr_selected_outlet';
 
+// Owner: everything, including managing team accounts and destructive
+// catalogue operations (Danger Zone, Resync).
+// Store Manager: full day-to-day operations across both outlets — entry,
+// reports, inventory, editing/adding master items — but not user
+// management or the catalogue-wide destructive actions.
+// Staff: data entry only (New DSR Entry, Daily Stock Closing). No
+// visibility into sales figures, reports, or the item catalogue.
+export const ROLES = ['owner', 'manager', 'staff'];
+export const ROLE_LABELS = { owner: 'Owner', manager: 'Store Manager', staff: 'Staff' };
+
+// Which top-level views each role can navigate to. App.jsx uses this both
+// to decide which nav buttons to render and to redirect a user off a view
+// they've lost access to (e.g. a role change mid-session).
+export const VIEW_ACCESS = {
+  owner: ['dashboard', 'new', 'history', 'daily_stock', 'inventory_summary', 'inventory_master', 'user_management'],
+  manager: ['dashboard', 'new', 'history', 'daily_stock', 'inventory_summary', 'inventory_master'],
+  staff: ['new', 'daily_stock'],
+};
+
 export const INVENTORY_CATEGORIES = [
   { code: 'A', name: 'Base' },
   { code: 'B', name: 'Dips & Sauces' },

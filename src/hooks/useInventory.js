@@ -13,14 +13,14 @@ import { db, INVENTORY_MASTER_COLLECTION, INVENTORY_DAILY_COLLECTION } from '../
 // was shaped.
 const toRecord = (docSnap) => ({ ...docSnap.data(), id: docSnap.id });
 
-export function useInventoryMaster(user, outlet) {
+export function useInventoryMaster(user, outlet, enabled = true) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !enabled) {
       setItems([]);
-      setLoading(false);
+      setLoading(!!user && !enabled);
       return;
     }
 
@@ -38,19 +38,19 @@ export function useInventoryMaster(user, outlet) {
     });
 
     return () => unsubscribe();
-  }, [user, outlet]);
+  }, [user, outlet, enabled]);
 
   return { items, loading };
 }
 
-export function useInventoryDailyRecords(user, outlet) {
+export function useInventoryDailyRecords(user, outlet, enabled = true) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !enabled) {
       setRecords([]);
-      setLoading(false);
+      setLoading(!!user && !enabled);
       return;
     }
 
@@ -77,7 +77,7 @@ export function useInventoryDailyRecords(user, outlet) {
     });
 
     return () => unsubscribe();
-  }, [user, outlet]);
+  }, [user, outlet, enabled]);
 
   return { records, loading };
 }

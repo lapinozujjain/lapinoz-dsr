@@ -9,13 +9,20 @@ import { getOneYearAgo } from '../utils/date';
 // accumulates years of history. Reports further back than a year aren't
 // reachable from the UI right now — if that's ever needed, this query
 // (and the date-range picker's min date) is the place to change it.
-export function useEntries(user) {
+//
+// `enabled` should be false until the signed-in user's role has been
+// confirmed active — otherwise this subscribes immediately on sign-in,
+// before App.jsx even knows whether the account is approved, and a
+// deactivated/not-yet-approved account hits a Firestore permission
+// error in the console for a screen it was never going to see anyway.
+export function useEntries(user, enabled = true) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !enabled) {
       setEntries([]);
+      setLoading(!!user && !enabled);
       return;
     }
 
@@ -34,7 +41,7 @@ export function useEntries(user) {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, enabled]);
 
   return { entries, loading };
 }

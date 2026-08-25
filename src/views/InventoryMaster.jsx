@@ -22,7 +22,7 @@ async function commitInChunks(operations) {
   }
 }
 
-export default function InventoryMaster({ user, outlet, masterItems, loading }) {
+export default function InventoryMaster({ user, outlet, masterItems, loading, role }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -294,7 +294,7 @@ export default function InventoryMaster({ user, outlet, masterItems, loading }) 
               </button>
             )}
 
-            {masterItems.length > 0 && (
+            {masterItems.length > 0 && role === 'owner' && (
               <button
                 onClick={() => setConfirmState({
                   title: "Resync Prices from Standard List?",
@@ -563,36 +563,38 @@ export default function InventoryMaster({ user, outlet, masterItems, loading }) 
         )}
       </div>
 
-      <div className="bg-white border-2 border-dashed border-red-200 rounded-xl p-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
-            <div>
-              <h3 className="font-bold text-red-700 text-sm">Danger Zone — Development Only</h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-xl">
-                Permanently deletes every item currently in {outlet}'s master list — including any you've
-                added by hand — and replaces it with a fresh copy of the {DEFAULT_INVENTORY_ITEMS.length}-item
-                standard list. This cannot be undone. Past daily closing records aren't affected, since each
-                one keeps its own saved snapshot of item names, units, and prices.
-              </p>
+      {role === 'owner' && (
+        <div className="bg-white border-2 border-dashed border-red-200 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+              <div>
+                <h3 className="font-bold text-red-700 text-sm">Danger Zone — Development Only</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-xl">
+                  Permanently deletes every item currently in {outlet}'s master list — including any you've
+                  added by hand — and replaces it with a fresh copy of the {DEFAULT_INVENTORY_ITEMS.length}-item
+                  standard list. This cannot be undone. Past daily closing records aren't affected, since each
+                  one keeps its own saved snapshot of item names, units, and prices.
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setConfirmState({
+                title: "Wipe and Reset Master List?",
+                message: `This will permanently delete all ${masterItems.length} existing item(s) for ${outlet} and replace them with a fresh copy of the ${DEFAULT_INVENTORY_ITEMS.length} standard items. Any custom items or price edits you've made will be lost. This cannot be undone.`,
+                confirmLabel: "Delete Everything & Reset",
+                danger: true,
+                onConfirm: handleResetToStandardList
+              })}
+              disabled={isResetting}
+              className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition shadow-sm flex-shrink-0 disabled:opacity-50"
+            >
+              <Trash2 size={16} className={isResetting ? "animate-pulse" : ""} />
+              <span>{isResetting ? 'Resetting...' : 'Wipe & Reset to Standard List'}</span>
+            </button>
           </div>
-          <button
-            onClick={() => setConfirmState({
-              title: "Wipe and Reset Master List?",
-              message: `This will permanently delete all ${masterItems.length} existing item(s) for ${outlet} and replace them with a fresh copy of the ${DEFAULT_INVENTORY_ITEMS.length} standard items. Any custom items or price edits you've made will be lost. This cannot be undone.`,
-              confirmLabel: "Delete Everything & Reset",
-              danger: true,
-              onConfirm: handleResetToStandardList
-            })}
-            disabled={isResetting}
-            className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition shadow-sm flex-shrink-0 disabled:opacity-50"
-          >
-            <Trash2 size={16} className={isResetting ? "animate-pulse" : ""} />
-            <span>{isResetting ? 'Resetting...' : 'Wipe & Reset to Standard List'}</span>
-          </button>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={!!confirmState}
