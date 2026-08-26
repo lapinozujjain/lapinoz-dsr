@@ -4,15 +4,20 @@ import { db, INVENTORY_MASTER_COLLECTION, INVENTORY_DAILY_COLLECTION } from '../
 
 // Every document written to either inventory collection also stores its
 // own `id` field (kept for readability/debugging), which is NOT always
-// the same as the real Firestore document ID — e.g. a master item's doc
-// ID is `master_${outlet}_${item.id}`, so the two diverge by design.
-// Spreading `...doc.data()` AFTER `id: doc.id` guarantees the real
-// Firestore ID always wins, however the document was shaped.
+// the same as the real Firestore document ID. Spreading `...doc.data()`
+// AFTER `id: doc.id` guarantees the real Firestore ID always wins,
+// however the document was shaped.
 const toRecord = (docSnap) => ({ ...docSnap.data(), id: docSnap.id });
 
 const normalizeOutlet = (value) => (value || '').trim().toUpperCase();
 
-export function useInventoryMaster(user, outlet, enabled = true) {
+// The item master (Base, Dips & Sauces, Cheese, etc. — prices and unit of
+// measure) is ONE shared catalogue used by both outlets, not a per-outlet
+// list. Editing an item's price here updates it everywhere, which is why
+// this hook takes no `outlet` argument and applies no outlet filter at
+// all — every active account, at either outlet, sees and edits the exact
+// same set of documents.
+export function useInventoryMaster(user, enabled = true) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,17 +30,8 @@ export function useInventoryMaster(user, outlet, enabled = true) {
 
     setLoading(true);
 
-    // No server-side outlet filter here (fetch everything, then match
-    // client-side below) — trims and uppercases both sides before
-    // comparing. A Firestore where('outlet','==',outlet) equality filter
-    // is exact-match only: if any document's outlet field has different
-    // casing or stray whitespace ("Freeganj", "FREEGANJ ") than the
-    // outlet string in state, that filter silently returns zero results
-    // for it — no error, just missing data. This also lets switching
-    // outlets be instant with no refetch, matching how DSR entries work.
     const unsubscribe = onSnapshot(collection(db, INVENTORY_MASTER_COLLECTION), (snapshot) => {
-      const all = snapshot.docs.map(toRecord);
-      setItems(all.filter(item => normalizeOutlet(item.outlet) === normalizeOutlet(outlet)));
+      setItems(snapshot.docs.map(toRecord));
       setLoading(false);
     }, (error) => {
       console.error('Error fetching inventory master:', error);
@@ -43,11 +39,14 @@ export function useInventoryMaster(user, outlet, enabled = true) {
     });
 
     return () => unsubscribe();
-  }, [user, outlet, enabled]);
+  }, [user, enabled]);
 
   return { items, loading };
 }
 
+// Daily closing records ARE per-outlet (each outlet counts and closes its
+// own physical stock every day), so this one still filters by outlet —
+// unlike the master list above.
 export function useInventoryDailyRecords(user, outlet, enabled = true) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,9 +60,12 @@ export function useInventoryDailyRecords(user, outlet, enabled = true) {
 
     setLoading(true);
 
-    // Same reasoning as useInventoryMaster above: fetch broadly, match
-    // outlet client-side with normalization rather than relying on an
-    // exact-match server-side filter.
+    // Fetches broadly and matches outlet client-side (trimmed,
+    // uppercased) rather than relying on an exact-match Firestore
+    // where('outlet','==',outlet) filter, which silently returns zero
+    // results — no error — for any document whose outlet field has
+    // different casing or stray whitespace than the outlet string in
+    // state.
     const unsubscribe = onSnapshot(collection(db, INVENTORY_DAILY_COLLECTION), (snapshot) => {
       const all = snapshot.docs.map(toRecord);
       setRecords(all.filter(r => normalizeOutlet(r.outlet) === normalizeOutlet(outlet)));

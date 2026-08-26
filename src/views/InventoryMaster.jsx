@@ -22,7 +22,7 @@ async function commitInChunks(operations) {
   }
 }
 
-export default function InventoryMaster({ user, outlet, masterItems, loading, role }) {
+export default function InventoryMaster({ user, masterItems, loading, role }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -60,7 +60,9 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
     try {
       const batch = writeBatch(db);
       DEFAULT_INVENTORY_ITEMS.forEach((item, idx) => {
-        const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${item.id}`);
+        // No outlet prefix: the item master is ONE shared catalogue used
+        // by both outlets, not a separate list per outlet.
+        const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${item.id}`);
         // Drop the seed data's own `id` field rather than writing it into
         // the document — the Firestore document ID is already the single
         // source of truth for identity (see useInventory.js), and storing
@@ -69,7 +71,6 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
         const { id: _seedId, ...itemData } = item;
         batch.set(docRef, {
           ...itemData,
-          outlet,
           order: idx + 1,
           updatedAt: serverTimestamp()
         });
@@ -112,7 +113,6 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
             categoryCode: std.categoryCode,
             uom: std.uom,
             netPrice: std.netPrice,
-            outlet,
             updatedAt: serverTimestamp()
           }, { merge: true });
           updatedCount++;
@@ -123,14 +123,13 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
           // old list's numbering for a completely different item.
           addedSeq++;
           const newId = `item_resync_${Date.now()}_${addedSeq}`;
-          const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${newId}`);
+          const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${newId}`);
           batch.set(docRef, {
             name: std.name,
             category: std.category,
             categoryCode: std.categoryCode,
             uom: std.uom,
             netPrice: std.netPrice,
-            outlet,
             order: masterItems.length + addedSeq,
             updatedAt: serverTimestamp()
           });
@@ -153,14 +152,16 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
     }
   };
 
-  // Dev-only utility: wipes every existing item for this outlet and
+  // Dev-only utility: wipes the entire shared master list — this
   // reseeds from scratch with today's standard list. Unlike Resync (which
   // only touches matching items and leaves everything else alone), this
   // deletes ALL of it first — including custom items you've added by
   // hand — so the catalogue exactly matches DEFAULT_INVENTORY_ITEMS with
-  // nothing left over. Doesn't touch inventory_daily_records: past
+  // nothing left over. Since this is now a shared master list, this
+  // affects BOTH outlets. Doesn't touch inventory_daily_records: past
   // closing entries keep their own saved snapshot of name/uom/price, so
-  // historical reports aren't affected by wiping the master list.
+  // historical reports for either outlet aren't affected by wiping the
+  // master list.
   const handleResetToStandardList = async () => {
     if (!user) return;
     setIsResetting(true);
@@ -168,11 +169,10 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
       const operations = [
         ...masterItems.map(item => (batch) => batch.delete(doc(db, INVENTORY_MASTER_COLLECTION, item.id))),
         ...DEFAULT_INVENTORY_ITEMS.map((item, idx) => (batch) => {
-          const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${item.id}`);
+          const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${item.id}`);
           const { id: _seedId, ...itemData } = item;
           batch.set(docRef, {
             ...itemData,
-            outlet,
             order: idx + 1,
             updatedAt: serverTimestamp()
           });
@@ -212,7 +212,6 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
         category: editForm.category,
         uom: editForm.uom,
         netPrice: parseFloat(editForm.netPrice) || 0,
-        outlet,
         updatedAt: serverTimestamp()
       }, { merge: true });
       setEditingId(null);
@@ -232,13 +231,12 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
     setFormError('');
     try {
       const itemId = `item_${Date.now()}`;
-      const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${outlet}_${itemId}`);
+      const docRef = doc(db, INVENTORY_MASTER_COLLECTION, `master_${itemId}`);
       await setDoc(docRef, {
         name: newForm.name.trim(),
         category: newForm.category,
         uom: newForm.uom,
         netPrice: parseFloat(newForm.netPrice) || 0,
-        outlet,
         order: masterItems.length + 1,
         updatedAt: serverTimestamp()
       });
@@ -267,12 +265,13 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <Package className="text-green-600" />
               Inventory Master List
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                {outlet}
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Shared — Both Outlets
               </span>
             </h2>
             <p className="text-gray-500 text-sm">
               Manage items, category classifications, measurement units, and net purchase rates.
+              A change here applies to both FREEGANJ and NANAKHEDA.
             </p>
           </div>
 
@@ -281,7 +280,7 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
               <button
                 onClick={() => setConfirmState({
                   title: "Seed Standard La Pino'z Item List?",
-                  message: `This will load the full catalogue of ${DEFAULT_INVENTORY_ITEMS.length} standard items and prices from your master sheet for ${outlet}.`,
+                  message: `This will load the full catalogue of ${DEFAULT_INVENTORY_ITEMS.length} standard items and prices, shared across both outlets.`,
                   confirmLabel: "Load Standard Items",
                   danger: false,
                   onConfirm: handleSeedDefaults
@@ -298,7 +297,7 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
               <button
                 onClick={() => setConfirmState({
                   title: "Resync Prices from Standard List?",
-                  message: `This updates category, UOM, and Net Price for every ${outlet} item whose name matches an item on the current standard list (${DEFAULT_INVENTORY_ITEMS.length} items). Standard items you don't have yet will be added. Items you've added yourself, or items no longer on the standard list, are left untouched.`,
+                  message: `This updates category, UOM, and Net Price for every shared item whose name matches an item on the current standard list (${DEFAULT_INVENTORY_ITEMS.length} items) — affecting both outlets. Standard items you don't have yet will be added. Items you've added yourself, or items no longer on the standard list, are left untouched.`,
                   confirmLabel: "Resync Prices",
                   danger: false,
                   onConfirm: handleResyncStandardPrices
@@ -541,7 +540,7 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
                             <button
                               onClick={() => setConfirmState({
                                 title: "Delete Item?",
-                                message: `Are you sure you want to remove "${item.name}" from ${outlet}'s inventory master?`,
+                                message: `Are you sure you want to remove "${item.name}" from the shared inventory master list? This removes it for both outlets.`,
                                 confirmLabel: "Delete",
                                 danger: true,
                                 onConfirm: () => deleteItem(item.id)
@@ -571,8 +570,8 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
               <div>
                 <h3 className="font-bold text-red-700 text-sm">Danger Zone — Development Only</h3>
                 <p className="text-xs text-gray-500 mt-1 max-w-xl">
-                  Permanently deletes every item currently in {outlet}'s master list — including any you've
-                  added by hand — and replaces it with a fresh copy of the {DEFAULT_INVENTORY_ITEMS.length}-item
+                  Permanently deletes every item in the shared master list — used by both outlets, including
+                  any you've added by hand — and replaces it with a fresh copy of the {DEFAULT_INVENTORY_ITEMS.length}-item
                   standard list. This cannot be undone. Past daily closing records aren't affected, since each
                   one keeps its own saved snapshot of item names, units, and prices.
                 </p>
@@ -581,7 +580,7 @@ export default function InventoryMaster({ user, outlet, masterItems, loading, ro
             <button
               onClick={() => setConfirmState({
                 title: "Wipe and Reset Master List?",
-                message: `This will permanently delete all ${masterItems.length} existing item(s) for ${outlet} and replace them with a fresh copy of the ${DEFAULT_INVENTORY_ITEMS.length} standard items. Any custom items or price edits you've made will be lost. This cannot be undone.`,
+                message: `This will permanently delete all ${masterItems.length} existing item(s) from the shared master list — used by both outlets — and replace them with a fresh copy of the ${DEFAULT_INVENTORY_ITEMS.length} standard items. Any custom items or price edits you've made will be lost. This cannot be undone.`,
                 confirmLabel: "Delete Everything & Reset",
                 danger: true,
                 onConfirm: handleResetToStandardList

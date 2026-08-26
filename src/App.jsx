@@ -51,7 +51,7 @@ export default function App() {
   const dataAccessEnabled = Boolean(user && !roleLoading && hasRoleDoc && active);
 
   const { entries, loading: dsrLoading } = useEntries(user, dataAccessEnabled);
-  const { items: masterItems, loading: masterLoading } = useInventoryMaster(user, outlet, dataAccessEnabled);
+  const { items: masterItems, loading: masterLoading } = useInventoryMaster(user, dataAccessEnabled);
   const { records: inventoryRecords } = useInventoryDailyRecords(user, outlet, dataAccessEnabled);
 
   const outletEntries = useMemo(
@@ -221,7 +221,6 @@ export default function App() {
         return (
           <InventoryMaster
             user={user}
-            outlet={outlet}
             masterItems={masterItems}
             loading={masterLoading}
             role={role}
