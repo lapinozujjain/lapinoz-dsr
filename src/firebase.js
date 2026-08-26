@@ -16,6 +16,15 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
+// Surfaced in the UI (login screen + permission-error screen) so anyone
+// can confirm at a glance which Firebase project this deployed build is
+// actually talking to, without opening DevTools. A "rules are published
+// and correct, but I still get permission-denied" report almost always
+// means this ID doesn't match the project the rules were published to
+// (e.g. a stale/incorrect VITE_FIREBASE_PROJECT_ID in the host's
+// environment variables).
+export const FIREBASE_PROJECT_ID = firebaseConfig.projectId;
+
 export const ENTRIES_COLLECTION = 'dsr_entries';
 export const INVENTORY_MASTER_COLLECTION = 'inventory_master';
 export const INVENTORY_DAILY_COLLECTION = 'inventory_daily_records';

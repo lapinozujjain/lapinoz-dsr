@@ -15,7 +15,7 @@ const SWIGGY_ICON = 'https://cdn.simpleicons.org/swiggy';
 // Uengage isn't in any third-party icon set — reusing the same official
 // asset already used elsewhere in this app (App.jsx sidebar/login) rather
 // than guessing at a different logo file.
-const UENGAGE_ICON = 'https://cdn.uengage.io/brand_logo/logo-5-1759903116.png';
+const UENGAGE_ICON = 'https://www.uengage.io/images/uengage-logo-new-green.svg';
 
 export default function Dashboard({ entries, outlet }) {
   const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate, maxDate } = useDateRangeFilter(entries);

@@ -7,7 +7,7 @@ import {
   onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail
 } from "firebase/auth";
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { auth, db, USERS_COLLECTION, APP_CONFIG_COLLECTION } from './firebase';
+import { auth, db, USERS_COLLECTION, APP_CONFIG_COLLECTION, FIREBASE_PROJECT_ID } from './firebase';
 import { OUTLETS, DEFAULT_LEGACY_OUTLET, OUTLET_STORAGE_KEY, VIEW_ACCESS, ROLES } from './constants';
 import { useEntries } from './hooks/useEntries';
 import { useInventoryMaster, useInventoryDailyRecords } from './hooks/useInventory';
@@ -60,7 +60,7 @@ export default function App() {
   const hasValidRole = Boolean(role && ROLES.includes(role));
   const dataAccessEnabled = Boolean(user && !roleLoading && hasRoleDoc && active && hasValidRole);
 
-  const { entries, loading: dsrLoading } = useEntries(user, dataAccessEnabled);
+  const { entries, loading: dsrLoading, error: dsrError } = useEntries(user, dataAccessEnabled);
   const { items: masterItems, loading: masterLoading } = useInventoryMaster(user, dataAccessEnabled);
   const { records: inventoryRecords } = useInventoryDailyRecords(user, outlet, dataAccessEnabled);
 
@@ -312,6 +312,9 @@ export default function App() {
           <p className="text-center mt-4 text-2xs text-gray-400 border-t pt-3">
             Accounts are managed by the store Owner. Contact your administrator if you need access.
           </p>
+          <p className="text-center mt-2 text-2xs text-gray-300 font-mono">
+            Firebase project: {FIREBASE_PROJECT_ID || '(not set)'}
+          </p>
         </div>
       </div>
     );
@@ -445,6 +448,46 @@ export default function App() {
             Your account (<strong>{user.email}</strong>) doesn't have a valid role assigned yet.
             Ask the Owner to set your role in Team Accounts.
           </p>
+          <button
+            onClick={handleLogout}
+            className="w-full bg-gray-100 text-gray-700 p-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+          >
+            Log Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // The client-side checks above (role doc exists, active, valid role
+  // value) all passed, yet Firestore itself still refused the read —
+  // this only happens when the security rules actually live on Firebase
+  // are different from what's in firestore.rules in this repo (not
+  // published / published to a different project) or when the deployed
+  // build's own Firebase project ID doesn't match the project the rules
+  // were published to. Showing this project ID directly on screen turns
+  // that mismatch into something anyone can check without DevTools.
+  if (dsrError?.code === 'permission-denied') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="p-8 bg-white shadow-xl rounded-xl w-full max-w-lg text-center border border-gray-100">
+          <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+            <ShieldAlert size={22} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Firestore Permission Denied</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Signed in as <strong>{user.email}</strong> with role <strong>{role}</strong>, but Firestore
+            rejected the request. This almost always means the rules published in the Firebase Console
+            are not on the same project this app is configured to use.
+          </p>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-6 text-left text-xs space-y-1">
+            <p className="text-gray-500">This app is using Firebase project:</p>
+            <p className="font-mono font-bold text-gray-800 text-sm break-all">{FIREBASE_PROJECT_ID || '(not set — check environment variables)'}</p>
+            <p className="text-gray-500 mt-2">
+              Open the Firebase Console tab where you published <code className="bg-gray-200 px-1 rounded">firestore.rules</code> and
+              confirm the project name/ID shown top-left matches the one above exactly.
+            </p>
+          </div>
           <button
             onClick={handleLogout}
             className="w-full bg-gray-100 text-gray-700 p-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
