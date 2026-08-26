@@ -8,11 +8,12 @@ import { CSV_HEADERS, entryToCsvRow, parseDsrCsv } from '../utils/csv';
 import { useDateRangeFilter } from '../hooks/useDateRangeFilter';
 import { DateRangePicker, ConfirmDialog } from '../components/common';
 
-export default function HistoryView({ entries, user, outlet }) {
+export default function HistoryView({ entries, user, outlet, role }) {
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedExpenseEntry, setSelectedExpenseEntry] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const canDelete = role === 'owner';
 
   const { startDate, endDate, draftStart, draftEnd, setDraftStart, setDraftEnd, filteredEntries, fetchReports, minDate, maxDate } = useDateRangeFilter(entries);
 
@@ -23,10 +24,34 @@ export default function HistoryView({ entries, user, outlet }) {
     [filteredEntries]
   );
 
+  // Column totals for the currently selected date range and outlet —
+  // shown as a pinned row above the daily entries so the period's
+  // overall figures are visible without scrolling or exporting.
+  const columnTotals = useMemo(() => {
+    return sortedEntries.reduce((acc, entry) => {
+      const zomato = (entry.sales?.zomatoOnline || 0) + (entry.sales?.zomatoCash || 0);
+      const uengage = (entry.sales?.uengageOnline || 0) + (entry.sales?.uengageCash || 0);
+      const envelopeCash = (entry.physicalCash || 0) - OPENING_CASH_BALANCE;
+      const totalCashSale = (entry.sales?.cash || 0) + (entry.sales?.zomatoCash || 0) + (entry.sales?.uengageCash || 0);
+
+      acc.totalSale += entry.totalSale || 0;
+      acc.pos += entry.sales?.pos || 0;
+      acc.swiggy += entry.sales?.swiggy || 0;
+      acc.zomato += zomato;
+      acc.uengage += uengage;
+      acc.cashSale += entry.sales?.cash || 0;
+      acc.expenses += entry.totalExpense || 0;
+      acc.totalCashSale += totalCashSale;
+      acc.envelopeCash += envelopeCash;
+      acc.difference += entry.difference || 0;
+      return acc;
+    }, { totalSale: 0, pos: 0, swiggy: 0, zomato: 0, uengage: 0, cashSale: 0, expenses: 0, totalCashSale: 0, envelopeCash: 0, difference: 0 });
+  }, [sortedEntries]);
+
   const confirmDelete = async () => {
     const id = confirmDeleteId;
     setConfirmDeleteId(null);
-    if (!user?.uid || !id) return;
+    if (!user?.uid || !id || !canDelete) return;
     try {
       await deleteDoc(doc(db, ENTRIES_COLLECTION, id));
     } catch (e) {
@@ -189,13 +214,34 @@ export default function HistoryView({ entries, user, outlet }) {
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Envelope Cash</th>
                 <th className="p-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Short/Excess</th>
                 <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
-                <th className="p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
+                {canDelete && (
+                  <th className="p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
+              {sortedEntries.length > 0 && (
+                <tr className="bg-gray-100 font-bold border-b-2 border-gray-300">
+                  <td className="p-3 text-gray-800 sticky left-0 bg-gray-100">TOTAL</td>
+                  <td className="p-3 text-right text-gray-900">{formatCurrency(columnTotals.totalSale)}</td>
+                  <td className="p-3 text-right text-gray-800">{formatCurrency(columnTotals.pos)}</td>
+                  <td className="p-3 text-right text-gray-800">{formatCurrency(columnTotals.swiggy)}</td>
+                  <td className="p-3 text-right text-gray-800">{formatCurrency(columnTotals.zomato)}</td>
+                  <td className="p-3 text-right text-gray-800">{formatCurrency(columnTotals.uengage)}</td>
+                  <td className="p-3 text-right text-green-700 bg-green-100">{formatCurrency(columnTotals.cashSale)}</td>
+                  <td className="p-3 text-right text-red-700">- {formatCurrency(columnTotals.expenses)}</td>
+                  <td className="p-3 text-right text-gray-900">{formatCurrency(columnTotals.totalCashSale)}</td>
+                  <td className="p-3 text-right text-green-700 bg-green-100">{formatCurrency(columnTotals.envelopeCash)}</td>
+                  <td className={`p-3 text-right ${columnTotals.difference < 0 ? 'text-red-600' : columnTotals.difference > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                    {columnTotals.difference || '-'}
+                  </td>
+                  <td className="p-3"></td>
+                  {canDelete && <td className="p-3 no-print"></td>}
+                </tr>
+              )}
               {sortedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="p-6 text-center text-gray-500">
+                  <td colSpan={canDelete ? 13 : 12} className="p-6 text-center text-gray-500">
                     No entries found for this date range.
                   </td>
                 </tr>
@@ -236,11 +282,13 @@ export default function HistoryView({ entries, user, outlet }) {
                         {entry.comment || '-'}
                       </td>
 
-                      <td className="p-3 text-center no-print">
-                        <button onClick={() => setConfirmDeleteId(entry.id)} className="text-gray-400 hover:text-red-500 transition-colors">
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
+                      {canDelete && (
+                        <td className="p-3 text-center no-print">
+                          <button onClick={() => setConfirmDeleteId(entry.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

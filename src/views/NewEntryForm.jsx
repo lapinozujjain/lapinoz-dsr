@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import {
-  PlusCircle, AlertCircle, Calculator, MessageSquare, Lock, Save, Trash2, RotateCcw
+  PlusCircle, AlertCircle, Calculator, MessageSquare, Lock, Save, Trash2, RotateCcw, X, CheckCircle2
 } from 'lucide-react';
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS, EXPENSE_CATEGORIES } from '../constants';
@@ -12,7 +12,7 @@ const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', z
 const EMPTY_DENOMINATIONS = Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']));
 const EMPTY_EXPENSE_ROW = () => ({ id: Date.now(), category: '', description: '', amount: '' });
 
-export default function NewEntryForm({ user, outlet, onSuccess, existingEntries }) {
+export default function NewEntryForm({ user, outlet, existingEntries }) {
   // Entries can only be created for the current month — min/max on the
   // date input plus a check inside validate() so a manipulated/cached
   // input can't slip a backdated or future entry through.
@@ -28,12 +28,15 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
   const [denominations, setDenominations] = useState(EMPTY_DENOMINATIONS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState('');
-  // Drives the ConfirmDialog for both Reset and the duplicate-date
-  // warning — replaces window.confirm(), which blocks the main thread
-  // for as long as the dialog is open (that's what was triggering the
-  // "event handler blocked UI updates" INP warning on the Reset button).
+  // Drives the ConfirmDialog for Reset — replaces window.confirm(),
+  // which blocks the main thread for as long as the dialog is open
+  // (that's what was triggering the "event handler blocked UI updates"
+  // INP warning on the Reset button).
   const [confirmState, setConfirmState] = useState(null);
   const closeConfirm = () => setConfirmState(null);
+  // Review-and-confirm popup shown before the entry is actually saved.
+  const [showSummary, setShowSummary] = useState(false);
+  const [savedBanner, setSavedBanner] = useState(null);
 
   const totalSale = parseFloat(totalSaleInput) || 0;
   const pos = parseFloat(sales.pos) || 0;
@@ -120,12 +123,6 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
   };
 
   const proceedSubmit = async () => {
-    const error = validate();
-    if (error) {
-      setValidationError(error);
-      return;
-    }
-
     setIsSubmitting(true);
 
     const entryData = {
@@ -150,7 +147,9 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
 
     try {
       await addDoc(collection(db, ENTRIES_COLLECTION), entryData);
-      onSuccess();
+      setShowSummary(false);
+      setSavedBanner(`DSR entry for ${date} saved successfully.`);
+      performReset();
     } catch (error) {
       console.error("Error saving entry:", error);
       alert("Failed to save entry. Please try again.");
@@ -159,23 +158,27 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
     }
   };
 
-  const handleSubmit = () => {
+  const handleReviewClick = () => {
     if (!user) return;
     setValidationError('');
+    setSavedBanner(null);
 
+    // A record for this date already exists — no override option here.
+    // The only way past this is for the Owner to delete the existing
+    // record in DSR Reports first, then a fresh one can be entered.
     const duplicate = existingEntries.find(e => e.date === date);
     if (duplicate) {
-      setConfirmState({
-        title: "Duplicate date",
-        message: `A report for ${date} already exists. Continue and add another entry for this date?`,
-        confirmLabel: "Continue",
-        danger: true,
-        onConfirm: () => { closeConfirm(); proceedSubmit(); }
-      });
+      setValidationError(`A DSR record for ${date} already exists. Ask the Owner to delete it in DSR Reports before entering a new one for this date.`);
       return;
     }
 
-    proceedSubmit();
+    const error = validate();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+
+    setShowSummary(true);
   };
 
   return (
@@ -189,6 +192,18 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
             {outlet}
           </span>
         </h2>
+
+        {savedBanner && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+            <span className="flex items-center">
+              <Save size={18} className="mr-2 flex-shrink-0" />
+              {savedBanner}
+            </span>
+            <button onClick={() => setSavedBanner(null)} className="text-green-600 hover:text-green-800 flex-shrink-0 ml-3">
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {validationError && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 flex items-center">
@@ -435,14 +450,103 @@ export default function NewEntryForm({ user, outlet, onSuccess, existingEntries 
             <span>Reset</span>
           </button>
           <button
-            onClick={handleSubmit} disabled={isSubmitting}
+            onClick={handleReviewClick} disabled={isSubmitting}
             className="flex items-center space-x-2 bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 shadow-md transition-all disabled:opacity-50"
           >
             <Save size={20} />
-            <span>{isSubmitting ? 'Saving...' : 'Save DSR Entry'}</span>
+            <span>Review & Save DSR Entry</span>
           </button>
         </div>
       </div>
+
+      {showSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 no-print">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-5 border-b">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <CheckCircle2 className="text-green-600" size={22} />
+                Confirm DSR Entry
+              </h3>
+              <button onClick={() => setShowSummary(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-500">Date</span>
+                <span className="font-semibold text-gray-900">{date}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b">
+                <span className="text-sm text-gray-500">Outlet</span>
+                <span className="font-semibold text-gray-900">{outlet}</span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Revenue Breakup</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span>Total Daily Sale</span><span className="font-bold">{formatCurrency(totalSale)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>POS (UPI/CC)</span><span>{formatCurrency(pos)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Swiggy</span><span>{formatCurrency(swiggy)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Zomato (Online + Cash)</span><span>{formatCurrency(zomatoOnline + zomatoCash)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Uengage (Online + Cash)</span><span>{formatCurrency(uengageOnline + uengageCash)}</span></div>
+                  <div className="flex justify-between font-semibold text-green-700 pt-1 border-t mt-1">
+                    <span>Calculated Cash Sale</span><span>{formatCurrency(calculatedCashSale)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Expenses</h4>
+                <div className="flex justify-between text-sm text-red-600 font-medium">
+                  <span>Total Expenses ({expenses.filter(e => e.amount).length} item{expenses.filter(e => e.amount).length !== 1 ? 's' : ''})</span>
+                  <span>- {formatCurrency(totalExpense)}</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Cash Drawer</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span>Expected Cash</span><span className="font-semibold">{formatCurrency(theoreticalCashInHand)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Physical Count</span><span>{formatCurrency(physicalCash)}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Envelope Cash</span><span>{formatCurrency(envelopeCash)}</span></div>
+                  {difference !== 0 && (
+                    <div className={`flex justify-between font-bold pt-1 border-t mt-1 ${difference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span>{difference > 0 ? 'Excess' : 'Shortage'}</span>
+                      <span>{difference > 0 ? '+' : '-'}{formatCurrency(Math.abs(difference))}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {comment && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Note</h4>
+                  <p className="text-sm text-gray-600 italic">{comment}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-5 border-t bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setShowSummary(false)}
+                disabled={isSubmitting}
+                className="flex-1 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition disabled:opacity-50"
+              >
+                Edit
+              </button>
+              <button
+                onClick={proceedSubmit}
+                disabled={isSubmitting}
+                className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
+              >
+                <Save size={18} />
+                <span>{isSubmitting ? 'Saving...' : 'Confirm & Save'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!confirmState}

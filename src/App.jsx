@@ -192,12 +192,11 @@ export default function App() {
           <NewEntryForm
             user={user}
             outlet={outlet}
-            onSuccess={() => setView(allowedViews.includes('history') ? 'history' : 'new')}
             existingEntries={outletEntries}
           />
         );
       case 'history':
-        return <HistoryView entries={outletEntries} user={user} outlet={outlet} />;
+        return <HistoryView entries={outletEntries} user={user} outlet={outlet} role={role} />;
       case 'daily_stock':
         return (
           <DailyStockClosing

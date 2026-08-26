@@ -88,10 +88,13 @@ service cloud.firestore {
       // Every role can submit a new daily entry — that's the core
       // day-to-day job for Staff.
       allow create: if isAnyActiveRole();
-      // Editing/deleting an existing entry (corrections, CSV import
-      // upserts) is Owner/Manager only — Staff's screens never expose
-      // this, and rules back that up rather than relying on hidden UI.
-      allow update, delete: if isOwnerOrManager();
+      // Editing an existing entry (e.g. a CSV import upsert) stays
+      // Owner/Manager. Deleting is Owner-only: a duplicate-date entry
+      // must be removed by the Owner before a fresh one can be entered,
+      // and Managers no longer have a delete button in DSR Reports —
+      // this is the matching server-side rule, not just a hidden button.
+      allow update: if isOwnerOrManager();
+      allow delete: if isOwner();
     }
 
     // --- Inventory master list ---
