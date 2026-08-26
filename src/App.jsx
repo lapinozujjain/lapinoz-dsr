@@ -8,7 +8,7 @@ import {
 } from "firebase/auth";
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { auth, db, USERS_COLLECTION, APP_CONFIG_COLLECTION } from './firebase';
-import { OUTLETS, DEFAULT_LEGACY_OUTLET, OUTLET_STORAGE_KEY, VIEW_ACCESS } from './constants';
+import { OUTLETS, DEFAULT_LEGACY_OUTLET, OUTLET_STORAGE_KEY, VIEW_ACCESS, ROLES } from './constants';
 import { useEntries } from './hooks/useEntries';
 import { useInventoryMaster, useInventoryDailyRecords } from './hooks/useInventory';
 import { useCurrentUserRole, useAllUsers } from './hooks/useAppUsers';
@@ -48,7 +48,17 @@ export default function App() {
   const shouldFetchAllUsers = Boolean(user && (role === 'owner' || !hasRoleDoc));
   const { users: allUsers, loading: allUsersLoading } = useAllUsers(user, shouldFetchAllUsers);
 
-  const dataAccessEnabled = Boolean(user && !roleLoading && hasRoleDoc && active);
+  // hasRoleDoc/active only confirm the /users/{uid} doc exists and isn't
+  // deactivated — they say nothing about whether `role` is actually one
+  // of the values the Firestore rules check for (isAnyActiveRole() denies
+  // anything outside ['owner','manager','staff']). A doc with a missing
+  // or mistyped role field used to pass hasRoleDoc && active and still
+  // get "Missing or insufficient permissions" the moment the entries
+  // listener opened. Requiring role to be a recognized value closes
+  // that gap and lets the UI show a clear message instead of a raw
+  // Firestore error in the console.
+  const hasValidRole = Boolean(role && ROLES.includes(role));
+  const dataAccessEnabled = Boolean(user && !roleLoading && hasRoleDoc && active && hasValidRole);
 
   const { entries, loading: dsrLoading } = useEntries(user, dataAccessEnabled);
   const { items: masterItems, loading: masterLoading } = useInventoryMaster(user, dataAccessEnabled);
@@ -202,6 +212,7 @@ export default function App() {
           <DailyStockClosing
             user={user}
             outlet={outlet}
+            role={role}
             masterItems={masterItems}
             dsrEntries={outletEntries}
             inventoryRecords={inventoryRecords}
@@ -405,6 +416,34 @@ export default function App() {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Deactivated</h2>
           <p className="text-sm text-gray-500 mb-6">
             Access for <strong>{user.email}</strong> has been deactivated by the store administrator.
+          </p>
+          <button
+            onClick={handleLogout}
+            className="w-full bg-gray-100 text-gray-700 p-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+          >
+            Log Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // A /users/{uid} doc exists and isn't deactivated, but its `role`
+  // field is missing or isn't one of owner/manager/staff — e.g. a typo
+  // made during manual Firestore edits. The Firestore rules would deny
+  // every read from this state anyway, so surface it clearly instead of
+  // opening a listener that's guaranteed to fail.
+  if (!hasValidRole) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="p-8 bg-white shadow-xl rounded-xl w-full max-w-md text-center border border-gray-100">
+          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+            <ShieldAlert size={22} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Account Role Not Set</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Your account (<strong>{user.email}</strong>) doesn't have a valid role assigned yet.
+            Ask the Owner to set your role in Team Accounts.
           </p>
           <button
             onClick={handleLogout}

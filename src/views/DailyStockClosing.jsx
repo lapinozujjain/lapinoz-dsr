@@ -9,7 +9,7 @@ import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
 import { ConfirmDialog } from '../components/common';
 
 export default function DailyStockClosing({
-  user, outlet, masterItems, dsrEntries, inventoryRecords, onSuccess
+  user, outlet, role, masterItems, dsrEntries, inventoryRecords, onSuccess
 }) {
   const monthStart = getFirstDayOfMonth();
   const today = getToday();
@@ -44,6 +44,15 @@ export default function DailyStockClosing({
   const currentRecord = useMemo(() => {
     return inventoryRecords.find(r => r.date === date) || null;
   }, [inventoryRecords, date]);
+
+  // Re-saving a day that already has a closing record is an "update" in
+  // Firestore terms, and the security rules restrict updates on
+  // inventory_daily_records to Owner/Manager (first-time submission is
+  // open to everyone, correcting an already-submitted day isn't). The
+  // form used to let Staff reopen and edit a submitted day's numbers and
+  // only find out it was blocked when Save hit a permission error —
+  // this catches it up front instead.
+  const isLockedForRole = Boolean(currentRecord) && role === 'staff';
 
   useEffect(() => {
     if (!masterItems || masterItems.length === 0) return;
@@ -155,6 +164,11 @@ export default function DailyStockClosing({
   const handleSave = async () => {
     if (!user) return;
     setValidationError('');
+
+    if (isLockedForRole) {
+      setValidationError("This day's closing record has already been submitted. Ask a Store Manager or the Owner to make corrections.");
+      return;
+    }
 
     if (date < monthStart || date > today) {
       setValidationError("Closing records can only be submitted for dates within the current month.");
@@ -307,6 +321,15 @@ export default function DailyStockClosing({
             <p className="text-2xs opacity-75 mt-1">Total Consumption / Net Sales</p>
           </div>
         </div>
+
+        {isLockedForRole && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs mb-6">
+            <AlertCircle size={16} />
+            <span>
+              This day's closing record was already submitted. You can view it, but only a Store Manager or the Owner can correct an already-submitted day.
+            </span>
+          </div>
+        )}
 
         {previousRecord && (
           <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 text-blue-800 rounded-lg text-xs mb-6">
@@ -483,7 +506,8 @@ export default function DailyStockClosing({
 
           <button
             onClick={handleSave}
-            disabled={isSubmitting || masterItems.length === 0}
+            disabled={isSubmitting || masterItems.length === 0 || isLockedForRole}
+            title={isLockedForRole ? "Already submitted — ask a Manager or Owner to edit" : undefined}
             className="flex items-center gap-1.5 bg-green-600 text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 shadow-md transition disabled:opacity-50"
           >
             <Save size={18} />

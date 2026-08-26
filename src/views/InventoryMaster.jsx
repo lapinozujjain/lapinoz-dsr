@@ -537,19 +537,21 @@ export default function InventoryMaster({ user, masterItems, loading, role }) {
                             >
                               <Edit2 size={15} />
                             </button>
-                            <button
-                              onClick={() => setConfirmState({
-                                title: "Delete Item?",
-                                message: `Are you sure you want to remove "${item.name}" from the shared inventory master list? This removes it for both outlets.`,
-                                confirmLabel: "Delete",
-                                danger: true,
-                                onConfirm: () => deleteItem(item.id)
-                              })}
-                              className="p-1 text-gray-400 hover:text-red-600 rounded"
-                              title="Delete"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            {role === 'owner' && (
+                              <button
+                                onClick={() => setConfirmState({
+                                  title: "Delete Item?",
+                                  message: `Are you sure you want to remove "${item.name}" from the shared inventory master list? This removes it for both outlets.`,
+                                  confirmLabel: "Delete",
+                                  danger: true,
+                                  onConfirm: () => deleteItem(item.id)
+                                })}
+                                className="p-1 text-gray-400 hover:text-red-600 rounded"
+                                title="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>

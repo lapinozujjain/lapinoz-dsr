@@ -80,8 +80,19 @@ export default function HistoryView({ entries, user, outlet, role }) {
           // file idempotent (updates that day's entry for this outlet)
           // instead of piling up a fresh duplicate every time — and keeps
           // the two outlets from colliding if they share an import date.
-          const docRef = doc(db, ENTRIES_COLLECTION, `csv_${outlet}_${entryData.date}`);
-          batch.set(docRef, { ...entryData, outlet, createdAt: serverTimestamp() });
+          //
+          // But that synthetic ID only matches a PREVIOUS csv import, not
+          // a manually-entered record for the same date (those save with
+          // a random auto-ID from addDoc in NewEntryForm). Importing a
+          // date that already has a manual entry used to create a SECOND
+          // document instead of replacing it, silently double-counting
+          // that day in every total. Reusing the existing doc's real ID
+          // when one exists for this date fixes that.
+          const existing = entries.find(e => e.date === entryData.date);
+          const docRef = existing
+            ? doc(db, ENTRIES_COLLECTION, existing.id)
+            : doc(db, ENTRIES_COLLECTION, `csv_${outlet}_${entryData.date}`);
+          batch.set(docRef, { ...entryData, outlet, createdAt: serverTimestamp() }, { merge: true });
         });
 
         if (parsed.length > 0) {
@@ -233,7 +244,7 @@ export default function HistoryView({ entries, user, outlet, role }) {
                   <td className="p-3 text-right text-gray-900">{formatCurrency(columnTotals.totalCashSale)}</td>
                   <td className="p-3 text-right text-green-700 bg-green-100">{formatCurrency(columnTotals.envelopeCash)}</td>
                   <td className={`p-3 text-right ${columnTotals.difference < 0 ? 'text-red-600' : columnTotals.difference > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                    {columnTotals.difference || '-'}
+                    {columnTotals.difference ? formatCurrency(columnTotals.difference) : '-'}
                   </td>
                   <td className="p-3"></td>
                   {canDelete && <td className="p-3 no-print"></td>}
@@ -275,7 +286,7 @@ export default function HistoryView({ entries, user, outlet, role }) {
                       <td className="p-3 text-right font-bold text-green-700 bg-green-50">{formatCurrency(envelopeCash)}</td>
 
                       <td className={`p-3 text-right font-bold ${entry.difference < 0 ? 'text-red-600' : entry.difference > 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                        {entry.difference || '-'}
+                        {entry.difference ? formatCurrency(entry.difference) : '-'}
                       </td>
 
                       <td className="p-3 text-xs text-gray-500 italic max-w-xs truncate" title={entry.comment}>
