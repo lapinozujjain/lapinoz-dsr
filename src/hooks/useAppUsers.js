@@ -22,8 +22,9 @@ export function useCurrentUserRole(user) {
     const unsubscribe = onSnapshot(doc(db, USERS_COLLECTION, user.uid), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        setRole(data.role || null);
-        setActive(data.active !== false);
+        const normalizedRole = data.role ? String(data.role).trim().toLowerCase() : null;
+        setRole(normalizedRole);
+        setActive(data.active !== false && data.active !== 'false');
         setExists(true);
       } else {
         setRole(null);
@@ -56,7 +57,11 @@ export function useAllUsers(user, enabled = true) {
     setLoading(true);
 
     const unsubscribe = onSnapshot(collection(db, USERS_COLLECTION), (snapshot) => {
-      setUsers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      setUsers(snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        role: d.data().role ? String(d.data().role).trim().toLowerCase() : 'staff'
+      })));
       setLoading(false);
     }, (error) => {
       console.error('Error fetching users list:', error);
