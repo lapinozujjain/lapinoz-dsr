@@ -27,3 +27,21 @@ button:disabled {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Removes the native increase/decrease spinner arrows from every
+   type="number" input across the app's entry forms (Chrome/Edge/Safari
+   render these via ::-webkit-*-spin-button; Firefox via -moz-appearance).
+   This only hides the visual toggle — it does not change how the
+   input behaves, so typing, validation, and min="0"/step attributes
+   are unaffected. See App.jsx for the companion fix that also stops
+   the Up/Down arrow keys from nudging the value while a number field
+   is focused. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

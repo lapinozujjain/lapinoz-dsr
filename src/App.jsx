@@ -80,6 +80,27 @@ export default function App() {
     }
   }, [role, allowedViews, view]);
 
+  // Native type="number" inputs treat the Up/Down arrow keys as a
+  // spinner: each press nudges the value by 1, right on top of
+  // whatever the user was typing. Hiding the visual spinner (see
+  // index.css) doesn't stop this — the keyboard behavior is separate
+  // from the rendered buttons — so it's blocked app-wide here for
+  // every numeric entry field, on every form, without having to touch
+  // each input individually.
+  useEffect(() => {
+    const blockArrowSpin = (e) => {
+      if (
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+        e.target instanceof HTMLInputElement &&
+        e.target.type === 'number'
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('keydown', blockArrowSpin);
+    return () => document.removeEventListener('keydown', blockArrowSpin);
+  }, []);
+
   const handleOutletChange = (value) => {
     setOutlet(value);
     try {
