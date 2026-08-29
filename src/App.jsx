@@ -263,7 +263,7 @@ export default function App() {
             <img src="https://cdn.uengage.io/brand_logo/lapinoz.png" alt="Company Logo" className="h-16 w-auto" />
           </div>
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-            LA PINO'Z DSR & Inventory
+            La Pino'Z DSR & Inventory Management
           </h2>
           <p className="text-xs text-center text-gray-500 mb-6">Sign in to your account</p>
 
