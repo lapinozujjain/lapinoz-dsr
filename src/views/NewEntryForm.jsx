@@ -6,6 +6,7 @@ import {
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS, EXPENSE_CATEGORIES } from '../constants';
 import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+import { handleGridArrowNav } from '../utils/gridNav';
 import { ConfirmDialog } from '../components/common';
 
 const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', zomatoOnline: '', zomatoCash: '' };
@@ -246,7 +247,7 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                 <label className="text-sm text-gray-600 font-medium">POS (UPI/CC)</label>
                 <div className="relative w-1/2">
                   <span className="absolute left-3 top-2 text-gray-400">₹</span>
-                  <input type="number" min="0" placeholder="0" value={sales.pos} onChange={(e) => setSales({ ...sales, pos: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
+                  <input type="number" min="0" placeholder="0" value={sales.pos} onChange={(e) => setSales({ ...sales, pos: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={0} data-nav-col={0} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
                 </div>
               </div>
 
@@ -254,7 +255,7 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                 <label className="text-sm text-gray-600 font-medium">Swiggy</label>
                 <div className="relative w-1/2">
                   <span className="absolute left-3 top-2 text-gray-400">₹</span>
-                  <input type="number" min="0" placeholder="0" value={sales.swiggy} onChange={(e) => setSales({ ...sales, swiggy: e.target.value })} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
+                  <input type="number" min="0" placeholder="0" value={sales.swiggy} onChange={(e) => setSales({ ...sales, swiggy: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={1} data-nav-col={0} className="w-full pl-7 p-2 border border-gray-200 rounded-md text-right focus:border-green-500 outline-none" />
                 </div>
               </div>
 
@@ -267,14 +268,14 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                     <label className="block text-xs text-gray-400 mb-1">Online</label>
                     <div className="relative">
                       <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
-                      <input type="number" min="0" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                      <input type="number" min="0" placeholder="0" value={sales.zomatoOnline} onChange={(e) => setSales({ ...sales, zomatoOnline: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={2} data-nav-col={0} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                     </div>
                   </div>
                   <div className="flex-1">
                     <label className="block text-xs text-gray-400 mb-1">Cash</label>
                     <div className="relative">
                       <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
-                      <input type="number" min="0" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                      <input type="number" min="0" placeholder="0" value={sales.zomatoCash} onChange={(e) => setSales({ ...sales, zomatoCash: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={2} data-nav-col={1} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                     </div>
                   </div>
                 </div>
@@ -289,14 +290,14 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                     <label className="block text-xs text-gray-400 mb-1">Online</label>
                     <div className="relative">
                       <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
-                      <input type="number" min="0" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                      <input type="number" min="0" placeholder="0" value={sales.uengageOnline} onChange={(e) => setSales({ ...sales, uengageOnline: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={3} data-nav-col={0} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                     </div>
                   </div>
                   <div className="flex-1">
                     <label className="block text-xs text-gray-400 mb-1">Cash</label>
                     <div className="relative">
                       <span className="absolute left-2 top-2 text-gray-400 text-sm">₹</span>
-                      <input type="number" min="0" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
+                      <input type="number" min="0" placeholder="0" value={sales.uengageCash} onChange={(e) => setSales({ ...sales, uengageCash: e.target.value })} onKeyDown={handleGridArrowNav} data-nav-group="revenue" data-nav-row={3} data-nav-col={1} className="w-full pl-6 pr-2 p-2 border border-gray-200 rounded-md text-right text-sm focus:border-green-500 outline-none" />
                     </div>
                   </div>
                 </div>
@@ -320,7 +321,7 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                 </button>
               </div>
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                {expenses.map((exp) => (
+                {expenses.map((exp, expIdx) => (
                   <div key={exp.id} className="flex flex-col gap-1 p-2 bg-gray-50 rounded-md border border-gray-100">
                     <div className="flex gap-2">
                       <select
@@ -338,6 +339,8 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                         <input
                           type="number" min="0" placeholder="Amt" value={exp.amount}
                           onChange={(e) => handleExpenseChange(exp.id, 'amount', e.target.value)}
+                          onKeyDown={handleGridArrowNav}
+                          data-nav-group="expense-amount" data-nav-row={expIdx} data-nav-col={0}
                           className="w-full pl-6 pr-2 p-2 border rounded-md text-sm text-right bg-white"
                         />
                       </div>
@@ -350,6 +353,8 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
                     <input
                       type="text" placeholder="Note (required)" value={exp.description}
                       onChange={(e) => handleExpenseChange(exp.id, 'description', e.target.value)}
+                      onKeyDown={handleGridArrowNav}
+                      data-nav-group="expense-desc" data-nav-row={expIdx} data-nav-col={0}
                       className="p-2 border rounded-md text-sm bg-white"
                     />
                   </div>
@@ -379,12 +384,14 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
             <div>
               <h3 className="font-semibold text-gray-800 mb-3 text-sm uppercase tracking-wide">Cash Drawer Count</h3>
               <div className="grid grid-cols-3 gap-2">
-                {CASH_DENOMINATIONS.map(denom => (
+                {CASH_DENOMINATIONS.map((denom, denomIdx) => (
                   <div key={denom} className="flex flex-col">
                     <label className="text-xs text-gray-500 mb-1">x {denom}</label>
                     <input
                       type="number" min="0" placeholder="Qty" value={denominations[denom]}
                       onChange={(e) => setDenominations({ ...denominations, [denom]: e.target.value })}
+                      onKeyDown={handleGridArrowNav}
+                      data-nav-group="cash-denom" data-nav-row={Math.floor(denomIdx / 3)} data-nav-col={denomIdx % 3}
                       className="p-1 border rounded text-center text-sm"
                     />
                   </div>

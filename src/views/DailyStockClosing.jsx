@@ -6,6 +6,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, INVENTORY_DAILY_COLLECTION } from '../firebase';
 import { INVENTORY_CATEGORIES } from '../constants';
 import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+import { handleGridArrowNav } from '../utils/gridNav';
 import { ConfirmDialog } from '../components/common';
 
 export default function DailyStockClosing({
@@ -246,6 +247,15 @@ export default function DailyStockClosing({
     }
   };
 
+  // Assigns each item row a running index across ALL categories
+  // combined (not reset per category), so the keyboard grid nav in
+  // gridNav.js can move seamlessly from the last row of one category
+  // straight into the first row of the next. Recomputed on every
+  // render, which is fine — it's only read during this same render
+  // pass to stamp data-nav-row on each input.
+  let navRowCounter = -1;
+  const nextNavRow = () => ++navRowCounter;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -409,6 +419,7 @@ export default function DailyStockClosing({
                         <tbody className="divide-y divide-gray-100">
                           {catData.items.map((item, idx) => {
                             const entry = stockData[item.id] || { opening: '', purchase: '', closing: '' };
+                            const navRow = nextNavRow();
                             return (
                               <tr key={item.id} className="hover:bg-gray-50/80 transition">
                                 <td className="p-2.5 font-medium text-gray-900 min-w-[130px] sticky left-0 z-10 bg-white border-r border-gray-100">{item.name}</td>
@@ -421,6 +432,8 @@ export default function DailyStockClosing({
                                     type="number" step="any" placeholder="0" min="0"
                                     value={entry.opening}
                                     onChange={e => handleStockChange(item.id, 'opening', e.target.value)}
+                                    onKeyDown={handleGridArrowNav}
+                                    data-nav-group="stock-closing" data-nav-row={navRow} data-nav-col={0}
                                     className="w-full p-1.5 border border-amber-200 rounded text-center text-xs font-semibold bg-white focus:border-amber-500 outline-none"
                                   />
                                 </td>
@@ -431,6 +444,8 @@ export default function DailyStockClosing({
                                     type="number" step="any" placeholder="0" min="0"
                                     value={entry.purchase}
                                     onChange={e => handleStockChange(item.id, 'purchase', e.target.value)}
+                                    onKeyDown={handleGridArrowNav}
+                                    data-nav-group="stock-closing" data-nav-row={navRow} data-nav-col={1}
                                     className="w-full p-1.5 border border-blue-200 rounded text-center text-xs font-semibold bg-white focus:border-blue-500 outline-none"
                                   />
                                 </td>
@@ -441,6 +456,8 @@ export default function DailyStockClosing({
                                     type="number" step="any" placeholder="0" min="0"
                                     value={entry.closing}
                                     onChange={e => handleStockChange(item.id, 'closing', e.target.value)}
+                                    onKeyDown={handleGridArrowNav}
+                                    data-nav-group="stock-closing" data-nav-row={navRow} data-nav-col={2}
                                     className="w-full p-1.5 border border-green-200 rounded text-center text-xs font-semibold bg-white focus:border-green-500 outline-none"
                                   />
                                 </td>
