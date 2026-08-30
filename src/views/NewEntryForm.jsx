@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { db, ENTRIES_COLLECTION } from '../firebase';
 import { OPENING_CASH_BALANCE, CASH_DENOMINATIONS, EXPENSE_CATEGORIES } from '../constants';
-import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+import { formatCurrency, getEntryMinDate, getToday } from '../utils/date';
 import { handleGridArrowNav } from '../utils/gridNav';
 import { ConfirmDialog } from '../components/common';
 
@@ -13,11 +13,17 @@ const EMPTY_SALES = { pos: '', swiggy: '', uengageOnline: '', uengageCash: '', z
 const EMPTY_DENOMINATIONS = Object.fromEntries(CASH_DENOMINATIONS.map(d => [d, '']));
 const EMPTY_EXPENSE_ROW = () => ({ id: Date.now(), category: '', description: '', amount: '' });
 
-export default function NewEntryForm({ user, outlet, existingEntries }) {
-  // Entries can only be created for the current month — min/max on the
-  // date input plus a check inside validate() so a manipulated/cached
-  // input can't slip a backdated or future entry through.
-  const monthStart = getFirstDayOfMonth();
+export default function NewEntryForm({ user, outlet, existingEntries, role }) {
+  // Entries are normally restricted to the current month, but daily
+  // closing is usually done the NEXT morning — so the lower bound is
+  // "start of this month, or yesterday if that's still last month"
+  // (see getEntryMinDate), not a flat monthStart. The Owner is exempt
+  // from this lower bound entirely (e.g. correcting an older record),
+  // so minDate is left undefined for them — no min on the date input,
+  // no lower-bound check in validate(). Staff/Manager still get the
+  // 1-day grace and nothing further. The upper bound (no future dates)
+  // still applies to everyone.
+  const minDate = role === 'owner' ? undefined : getEntryMinDate();
   const today = getToday();
 
   const [date, setDate] = useState(today);
@@ -116,8 +122,11 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
       return "Cash drawer counts cannot be negative.";
     }
 
-    if (date < monthStart || date > today) {
-      return "New entries can only be created for the current month (and not for a future date).";
+    if (date > today) {
+      return "New entries cannot be created for a future date.";
+    }
+    if (minDate && date < minDate) {
+      return "New entries can only be created for the current month (or yesterday, if it falls in the previous month).";
     }
 
     return null;
@@ -217,10 +226,14 @@ export default function NewEntryForm({ user, outlet, existingEntries }) {
           <div className="w-full md:w-1/3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
             <input
-              type="date" value={date} min={monthStart} max={today} onChange={(e) => setDate(e.target.value)}
+              type="date" value={date} min={minDate} max={today} onChange={(e) => setDate(e.target.value)}
               className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
             />
-            <p className="text-xs text-gray-400 mt-1">Entries can only be made for the current month.</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {role === 'owner'
+                ? 'As Owner, you can create an entry for any past date.'
+                : 'Entries can be made for the current month, or for yesterday if it fell in the previous month.'}
+            </p>
           </div>
           <div className="w-full md:w-2/3">
             <label className="block text-sm font-bold text-gray-800 mb-1">Total Daily Sale (From Billing Software)</label>

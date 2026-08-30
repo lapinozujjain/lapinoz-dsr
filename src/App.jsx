@@ -224,6 +224,7 @@ export default function App() {
             user={user}
             outlet={outlet}
             existingEntries={outletEntries}
+            role={role}
           />
         );
       case 'history':

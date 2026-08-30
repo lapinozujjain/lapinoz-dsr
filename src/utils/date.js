@@ -27,6 +27,28 @@ export const getOneYearAgo = () => {
   return formatLocalDate(date);
 };
 
+export const getYesterday = () => {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  return formatLocalDate(date);
+};
+
+// Both the DSR and the stock closing are normally filled in for
+// "today", but in practice they're usually finalized the NEXT
+// morning once the day's numbers are settled — so on the 1st of a
+// new month, yesterday (the last day of the previous month) still
+// needs to be enterable, even though it falls outside the current
+// calendar month. Everything before that stays out of bounds, so
+// this only ever opens up one extra day, not unrestricted backdating.
+// Returns whichever is earlier: the first of the current month, or
+// yesterday's date (a plain string comparison works since both are
+// zero-padded ISO 'YYYY-MM-DD').
+export const getEntryMinDate = () => {
+  const monthStart = getFirstDayOfMonth();
+  const yesterday = getYesterday();
+  return yesterday < monthStart ? yesterday : monthStart;
+};
+
 // Rounds and formats a rupee amount consistently everywhere in the app,
 // so we never render floating point noise like ₹1234.500000000002.
 export const formatCurrency = (value) => `₹${Math.round(value || 0).toLocaleString('en-IN')}`;

@@ -5,14 +5,23 @@ import {
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, INVENTORY_DAILY_COLLECTION } from '../firebase';
 import { INVENTORY_CATEGORIES } from '../constants';
-import { formatCurrency, getFirstDayOfMonth, getToday } from '../utils/date';
+import { formatCurrency, getEntryMinDate, getToday } from '../utils/date';
 import { handleGridArrowNav } from '../utils/gridNav';
 import { ConfirmDialog } from '../components/common';
 
 export default function DailyStockClosing({
   user, outlet, role, masterItems, dsrEntries, inventoryRecords, onSuccess
 }) {
-  const monthStart = getFirstDayOfMonth();
+  // Stock closing is usually done the NEXT morning for the previous
+  // day — so the lower bound is "start of this month, or yesterday if
+  // that's still last month" (see getEntryMinDate), not a flat
+  // monthStart, otherwise the 1st of every month would lock out the
+  // last day's closing entirely. The Owner is exempt from this lower
+  // bound altogether (e.g. correcting an older record) — minDate is
+  // left undefined for them, so there's no floor on the date input
+  // and no lower-bound check below. Staff/Manager keep the 1-day
+  // grace and nothing further.
+  const minDate = role === 'owner' ? undefined : getEntryMinDate();
   const today = getToday();
 
   const [date, setDate] = useState(today);
@@ -171,8 +180,12 @@ export default function DailyStockClosing({
       return;
     }
 
-    if (date < monthStart || date > today) {
-      setValidationError("Closing records can only be submitted for dates within the current month.");
+    if (date > today) {
+      setValidationError("Closing records cannot be submitted for a future date.");
+      return;
+    }
+    if (minDate && date < minDate) {
+      setValidationError("Closing records can only be submitted for the current month (or yesterday, if it falls in the previous month).");
       return;
     }
 
@@ -277,7 +290,7 @@ export default function DailyStockClosing({
             <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
               <label className="text-xs font-semibold text-gray-500">Date:</label>
               <input
-                type="date" value={date} min={monthStart} max={today}
+                type="date" value={date} min={minDate} max={today}
                 onChange={e => setDate(e.target.value)}
                 className="text-sm font-semibold bg-transparent outline-none text-gray-900"
               />
