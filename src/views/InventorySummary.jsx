@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { INVENTORY_CATEGORIES } from '../constants';
 import { formatCurrency, getToday } from '../utils/date';
+import { ExpandCollapseAllButton } from '../components/common';
 
 export default function InventorySummary({ outlet, masterItems, dsrEntries, inventoryRecords }) {
   const [selectedMonth, setSelectedMonth] = useState(() => getToday().substring(0, 7));
@@ -93,6 +94,28 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
     };
   }, [masterItems, monthRecords, totalNetSales]);
 
+  // Drives the Expand All / Collapse All button — only counts
+  // categories that actually have items to show, matching what
+  // actually renders below.
+  const visibleCategoryNames = useMemo(() => (
+    INVENTORY_CATEGORIES
+      .filter(cat => monthlyAggregation.categoryTotals[cat.name]?.items.length > 0)
+      .map(cat => cat.name)
+  ), [monthlyAggregation.categoryTotals]);
+
+  const allCategoriesCollapsed = visibleCategoryNames.length > 0
+    && visibleCategoryNames.every(name => collapsedCategories[name]);
+
+  const handleToggleAllCategories = () => {
+    const collapseAll = !allCategoriesCollapsed;
+    setCollapsedCategories(prev => {
+      const next = { ...prev };
+      visibleCategoryNames.forEach(name => { next[name] = collapseAll; });
+      return next;
+    });
+  };
+
+
   const exportToCSV = () => {
     const rows = [
       [`"LA PINO'Z INVENTORY SUMMARY - ${outlet}"`],
@@ -181,6 +204,10 @@ export default function InventorySummary({ outlet, masterItems, dsrEntries, inve
               <Download size={15} />
               <span>Export CSV</span>
             </button>
+
+            {visibleCategoryNames.length > 0 && (
+              <ExpandCollapseAllButton allExpanded={!allCategoriesCollapsed} onClick={handleToggleAllCategories} />
+            )}
           </div>
         </div>
 

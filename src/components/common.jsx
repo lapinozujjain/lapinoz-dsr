@@ -1,6 +1,21 @@
 import React from 'react';
-import { Calendar, Search, Store } from 'lucide-react';
+import { Calendar, Search, Store, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { getToday } from '../utils/date';
+
+// Used on Daily Stock Closing and Monthly Inventory Summary — both
+// render the same list of collapsible category cards, so this is the
+// one button that opens/closes all of them at once instead of
+// clicking each category header individually.
+export const ExpandCollapseAllButton = React.memo(({ allExpanded, onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3.5 py-2 rounded-lg text-sm hover:bg-gray-200 transition border border-gray-200"
+    title={allExpanded ? 'Collapse every category' : 'Expand every category'}
+  >
+    {allExpanded ? <ChevronsUp size={15} /> : <ChevronsDown size={15} />}
+    <span>{allExpanded ? 'Collapse All' : 'Expand All'}</span>
+  </button>
+));
 
 export const OutletSelector = React.memo(({ outlet, onChange, options, dark = false }) => (
   <div className={`relative flex items-center ${dark ? 'text-gray-200' : 'text-gray-700'}`}>

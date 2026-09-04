@@ -7,7 +7,7 @@ import { db, INVENTORY_DAILY_COLLECTION } from '../firebase';
 import { INVENTORY_CATEGORIES } from '../constants';
 import { formatCurrency, getEntryMinDate, getToday } from '../utils/date';
 import { handleGridArrowNav } from '../utils/gridNav';
-import { ConfirmDialog } from '../components/common';
+import { ConfirmDialog, ExpandCollapseAllButton } from '../components/common';
 
 export default function DailyStockClosing({
   user, outlet, role, masterItems, dsrEntries, inventoryRecords, onSuccess
@@ -101,12 +101,66 @@ export default function DailyStockClosing({
     }));
   };
 
+  // WHY OPENING CAN GO STALE: the load effect above only pulls opening
+  // from previousRecord's closing the FIRST time this date is saved —
+  // once currentRecord exists, its own saved opening is used instead
+  // (the "if (currentRecord...)" branch above wins). So if someone
+  // later corrects the PREVIOUS day's closing stock, this day's
+  // opening — already saved — does NOT get recalculated on its own.
+  // That's not a bug in the save itself, it's that opening is a
+  // snapshot taken once, not a live formula — otherwise a deliberate
+  // manual override of opening (e.g. a physical recount) would get
+  // silently clobbered every time the previous day changes. This flags
+  // the drift instead of hiding it, and the button below lets it be
+  // pulled back into sync on demand.
+  const openingMismatches = useMemo(() => {
+    if (!currentRecord || !previousRecord) return [];
+    return masterItems.filter(item => {
+      const savedOpening = currentRecord.items?.[item.id]?.opening;
+      const prevClosing = previousRecord.items?.[item.id]?.closing;
+      return savedOpening !== undefined && prevClosing !== undefined
+        && Number(savedOpening) !== Number(prevClosing);
+    });
+  }, [currentRecord, previousRecord, masterItems]);
+
+  // Resets whenever the selected date changes, so switching dates
+  // always re-evaluates the real saved state instead of carrying over
+  // a stale "just synced" flag from whatever date was open before.
+  const [openingJustSynced, setOpeningJustSynced] = useState(false);
+  useEffect(() => {
+    setOpeningJustSynced(false);
+  }, [date]);
+
+  // Only updates the in-progress form state — same as typing into the
+  // fields by hand — so it still has to be reviewed and Saved like any
+  // other edit, rather than silently overwriting the stored record.
+  // The mismatch banner itself checks against the last SAVED opening
+  // (currentRecord), so without this flag it would keep showing even
+  // right after clicking Sync — correct in the sense that the database
+  // record really is still stale until Save is clicked, but confusing
+  // since the fields on screen already show the corrected number.
+  const handleSyncOpeningFromPrevious = () => {
+    setStockData(prev => {
+      const updated = { ...prev };
+      openingMismatches.forEach(item => {
+        const prevClosing = previousRecord.items?.[item.id]?.closing;
+        updated[item.id] = {
+          ...(updated[item.id] || { opening: '', purchase: '', closing: '' }),
+          opening: prevClosing !== undefined ? String(prevClosing) : ''
+        };
+      });
+      return updated;
+    });
+    setOpeningJustSynced(true);
+  };
+
   const toggleCategory = (catName) => {
     setCollapsedCategories(prev => ({
       ...prev,
       [catName]: !prev[catName]
     }));
   };
+
 
   const computedSummary = useMemo(() => {
     let totalUsedValue = 0;
@@ -170,6 +224,28 @@ export default function DailyStockClosing({
       negativeUsageItems
     };
   }, [masterItems, stockData, netSales]);
+
+  // Drives the Expand All / Collapse All button — only counts
+  // categories that actually have items to show (an empty category
+  // never renders a card at all, so it shouldn't count toward "are
+  // they all collapsed").
+  const visibleCategoryNames = useMemo(() => (
+    INVENTORY_CATEGORIES
+      .filter(cat => computedSummary.categoryBreakdown[cat.name]?.items.length > 0)
+      .map(cat => cat.name)
+  ), [computedSummary.categoryBreakdown]);
+
+  const allCategoriesCollapsed = visibleCategoryNames.length > 0
+    && visibleCategoryNames.every(name => collapsedCategories[name]);
+
+  const handleToggleAllCategories = () => {
+    const collapseAll = !allCategoriesCollapsed;
+    setCollapsedCategories(prev => {
+      const next = { ...prev };
+      visibleCategoryNames.forEach(name => { next[name] = collapseAll; });
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -295,6 +371,9 @@ export default function DailyStockClosing({
                 className="text-sm font-semibold bg-transparent outline-none text-gray-900"
               />
             </div>
+            {visibleCategoryNames.length > 0 && (
+              <ExpandCollapseAllButton allExpanded={!allCategoriesCollapsed} onClick={handleToggleAllCategories} />
+            )}
           </div>
         </div>
 
@@ -354,7 +433,22 @@ export default function DailyStockClosing({
           </div>
         )}
 
-        {previousRecord && (
+        {openingMismatches.length > 0 && !openingJustSynced ? (
+          <div className="flex items-center justify-between gap-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs mb-6">
+            <span className="flex items-center gap-2">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              Opening stock for {openingMismatches.length} item{openingMismatches.length > 1 ? 's' : ''} no longer matches <strong>{previousRecord.date}</strong>'s closing stock — likely because that day's closing was corrected after this record was saved.
+            </span>
+            {!isLockedForRole && (
+              <button
+                onClick={handleSyncOpeningFromPrevious}
+                className="flex-shrink-0 bg-amber-600 text-white px-3 py-1.5 rounded-md hover:bg-amber-700 transition font-semibold whitespace-nowrap"
+              >
+                Sync Opening from {previousRecord.date}
+              </button>
+            )}
+          </div>
+        ) : previousRecord && (
           <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 text-blue-800 rounded-lg text-xs mb-6">
             <Info size={16} />
             <span>
